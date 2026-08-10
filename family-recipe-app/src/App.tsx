@@ -8,6 +8,7 @@ import { ChefHat } from 'lucide-react';
 import { Favorites } from './pages/Favorites';
 import { AddRecipe } from './pages/AddRecipe';
 import { Dashboard } from './pages/Dashboard';
+import { Admin } from './pages/Admin';
 
 // Temporary Placeholder Components for your new tabs
 const Placeholder = ({ title }: { title: string }) => (
@@ -36,6 +37,7 @@ function App() {
           <Route path="/favorites" element={<Layout><Favorites /></Layout>} />
           <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
           <Route path="/add" element={<Layout><AddRecipe /></Layout>} />
+          <Route path="/admin" element={<Layout><Admin /></Layout>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

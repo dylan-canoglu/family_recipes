@@ -52,3 +52,15 @@ export async function syncUserData(userId: string) {
     console.error('User data sync failed:', err);
   }
 }
+
+// Admin-only: pulls every approval request regardless of requester, so the
+// review dashboard can see requests submitted by any family member.
+export async function syncAllApprovalRequests() {
+  try {
+    const { data, error } = await supabase.from('approval_requests').select('*');
+    if (error) throw error;
+    if (data) await db.approval_requests.bulkPut(data);
+  } catch (err) {
+    console.error('Approval request sync failed:', err);
+  }
+}
