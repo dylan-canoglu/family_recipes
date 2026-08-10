@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { ArrowLeft, Clock, ChefHat, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save } from 'lucide-react';
+import { ArrowLeft, Clock, ChefHat, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -33,6 +33,7 @@ export function RecipeDetail() {
   const [editFields, setEditFields] = useState<EditRecipeFields>(EMPTY_EDIT_FIELDS);
 
   const [noteDraft, setNoteDraft] = useState('');
+  const [showOriginal, setShowOriginal] = useState(false);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -61,6 +62,11 @@ export function RecipeDetail() {
   useEffect(() => {
     if (myNote) setNoteDraft(myNote.note_text);
   }, [myNote]);
+
+  // Default back to English whenever a different recipe is opened.
+  useEffect(() => {
+    setShowOriginal(false);
+  }, [id]);
 
   // 2. ACTION HANDLERS: The logic executed when a user clicks a button.
   const toggleFavorite = async () => {
@@ -236,8 +242,10 @@ export function RecipeDetail() {
   const isGlobal = recipe.visibility === 'global';
   const isOwner = recipe.owner_id === user?.id;
   const isPersonal = recipe.visibility === 'personal' || !recipe.visibility;
-  const ingredientLines = formatIngredientList(recipe.ingredients);
-  const instructionSteps = formatInstructionSteps(recipe.instructions);
+  const hasTranslation = !!(recipe.instructions_en || (recipe.ingredients_en && recipe.ingredients_en.length > 0));
+  const useOriginal = showOriginal || !hasTranslation;
+  const ingredientLines = formatIngredientList(useOriginal ? recipe.ingredients : recipe.ingredients_en);
+  const instructionSteps = formatInstructionSteps(useOriginal ? recipe.instructions : recipe.instructions_en);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -316,11 +324,20 @@ export function RecipeDetail() {
 
           <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6">{recipe.title}</h1>
 
-          <div className="flex flex-wrap items-center text-slate-600 gap-6 mb-10 pb-10 border-b border-slate-100">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-6 mb-10 pb-10 border-b border-slate-100">
+            <div className="flex items-center gap-2 text-slate-600">
               <Clock className="w-5 h-5 text-orange-600" />
               <span>Total: {recipe.total_time_min}m</span>
             </div>
+            {hasTranslation && (
+              <button
+                onClick={() => setShowOriginal(!showOriginal)}
+                className="flex items-center gap-2 text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <Languages className="w-4 h-4" />
+                {showOriginal ? 'Show English' : 'Show Original'}
+              </button>
+            )}
           </div>
 
           <div className="grid md:grid-cols-3 gap-12">

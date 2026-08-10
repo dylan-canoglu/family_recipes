@@ -11,6 +11,11 @@ export interface Recipe {
   owner_id?: string | null;
   visibility: 'personal' | 'pending_global' | 'global';
   deleted_at?: Date | string | null;
+  // English translations for legacy (mostly French/Turkish) recipes.
+  // Absent/null means there's nothing to translate -- the original is
+  // already the display language.
+  instructions_en?: string | null;
+  ingredients_en?: string[] | null;
 }
 
 export interface CookingLog { id: string; recipe_id: string; user_id: string; cooked_at: Date | string; rating: number; notes: string; }
