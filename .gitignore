@@ -1,0 +1,10 @@
+node_modules/
+__pycache__/
+.env
+node_modules/
+family-recipe-app/node_modules/
+__pycache__/
+.env
+venv/
+.venv/
+env/
