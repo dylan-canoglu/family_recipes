@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
@@ -5,15 +6,35 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { ArrowLeft, Clock, ChefHat, Heart, EyeOff, Eye, Trash2, Globe, Edit3 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Toast } from '../components/Toast';
+
+interface DialogState {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  showInput?: boolean;
+  onConfirm: (inputValue: string) => void | Promise<void>;
+}
 
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+  const [dialogInput, setDialogInput] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
+
   // 1. DATA FETCHING: Load the recipe and check if it is favorited or hidden by the current user.
   const recipe = useLiveQuery(() => db.recipes.get(id as string), [id]);
-  
+
   const favorite = useLiveQuery(
     () => (user && id) ? db.favorites.where({ recipe_id: id, user_id: user.id }).first() : undefined,
     [id, user]
@@ -26,7 +47,7 @@ export function RecipeDetail() {
 
   // 2. ACTION HANDLERS: The logic executed when a user clicks a button.
   const toggleFavorite = async () => {
-    if (!user || !id) return alert('Please sign in to favorite recipes!');
+    if (!user || !id) return showToast('Please sign in to favorite recipes!');
     if (favorite) {
       await db.favorites.delete(favorite.id);
       await supabase.from('favorites').delete().eq('id', favorite.id);
@@ -37,91 +58,123 @@ export function RecipeDetail() {
     }
   };
 
-  const handleHide = async () => {
+  const handleHide = () => {
     if (!user || !id) return;
-    if (window.confirm("Hide this recipe from your personal vault? It will still be available to others.")) {
-      const hiddenRecordData = { id: uuidv4(), user_id: user.id, recipe_id: id, created_at: new Date().toISOString() };
-      await db.user_hidden_recipes.put(hiddenRecordData); // Updates local instantly
-      await supabase.from('user_hidden_recipes').insert(hiddenRecordData); // Syncs to cloud
-    }
+    setDialog({
+      title: 'Hide Recipe',
+      message: 'Hide this recipe from your personal vault? It will still be available to others.',
+      confirmLabel: 'Hide',
+      onConfirm: async () => {
+        const hiddenRecordData = { id: uuidv4(), user_id: user.id, recipe_id: id, created_at: new Date().toISOString() };
+        await db.user_hidden_recipes.put(hiddenRecordData); // Updates local instantly
+        await supabase.from('user_hidden_recipes').insert(hiddenRecordData); // Syncs to cloud
+        setDialog(null);
+        showToast('Recipe hidden from your vault.');
+      },
+    });
   };
 
   const handleUnhide = async () => {
     if (!hiddenRecord) return;
     await db.user_hidden_recipes.delete(hiddenRecord.id);
     await supabase.from('user_hidden_recipes').delete().eq('id', hiddenRecord.id);
+    showToast('Recipe unhidden.');
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!user || !id) return;
-    if (window.confirm("Move this personal recipe to the Trash Bin?")) {
-      const now = new Date().toISOString();
-      await db.recipes.update(id, { deleted_at: now });
-      await supabase.from('recipes').update({ deleted_at: now }).eq('id', id);
-      navigate('/recipes');
-    }
+    setDialog({
+      title: 'Move to Trash',
+      message: 'Move this personal recipe to the Trash Bin?',
+      confirmLabel: 'Move to Trash',
+      danger: true,
+      onConfirm: async () => {
+        const now = new Date().toISOString();
+        await db.recipes.update(id, { deleted_at: now });
+        await supabase.from('recipes').update({ deleted_at: now }).eq('id', id);
+        setDialog(null);
+        navigate('/recipes');
+      },
+    });
   };
 
-  const handleSubmitGlobal = async () => {
+  const handleSubmitGlobal = () => {
     if (!user || !id) return;
-    if (window.confirm("Submit this recipe for approval to join the global family vault?")) {
-      // Update the recipe status so it shows as pending in the UI
-      await db.recipes.update(id, { visibility: 'pending_global' });
-      await supabase.from('recipes').update({ visibility: 'pending_global' }).eq('id', id);
-      
-      // Create the approval ticket for the admin
-      const request = {
-        id: uuidv4(),
-        recipe_id: id,
-        requested_by: user.id,
-        request_type: 'promote_to_global' as const,
-        status: 'pending' as const,
-        created_at: new Date().toISOString()
-      };
-      await db.approval_requests.put(request);
-      await supabase.from('approval_requests').insert(request);
-      
-      alert("Sent for admin approval!");
-    }
+    setDialog({
+      title: 'Submit to Global Vault',
+      message: 'Submit this recipe for approval to join the global family vault?',
+      confirmLabel: 'Submit',
+      onConfirm: async () => {
+        await db.recipes.update(id, { visibility: 'pending_global' });
+        await supabase.from('recipes').update({ visibility: 'pending_global' }).eq('id', id);
+
+        const request = {
+          id: uuidv4(),
+          recipe_id: id,
+          requested_by: user.id,
+          request_type: 'promote_to_global' as const,
+          status: 'pending' as const,
+          created_at: new Date().toISOString()
+        };
+        await db.approval_requests.put(request);
+        await supabase.from('approval_requests').insert(request);
+
+        setDialog(null);
+        showToast('Sent for admin approval!');
+      },
+    });
   };
 
-  const handleRequestEdit = async () => {
+  const handleRequestEdit = () => {
     if (!user || !id || !recipe) return;
-    
-    // The Input: We use a prompt to gather what they want changed.
-    const newTitle = prompt("Suggest a new title or describe the edits you want for this global recipe:", recipe.title);
-    if (!newTitle) return; // User cancelled
-
-    const request = {
-      id: uuidv4(),
-      recipe_id: id,
-      requested_by: user.id,
-      request_type: 'edit_global' as const,
-      proposed_changes: { title: newTitle }, // Packaging the input into the JSON column
-      status: 'pending' as const,
-      created_at: new Date().toISOString()
-    };
-    await db.approval_requests.put(request);
-    await supabase.from('approval_requests').insert(request);
-    alert("Edit request submitted to admin!");
+    setDialogInput(recipe.title);
+    setDialog({
+      title: 'Request an Edit',
+      message: 'Suggest a new title or describe the edits you want for this global recipe.',
+      confirmLabel: 'Send Request',
+      showInput: true,
+      onConfirm: async (value) => {
+        if (!value.trim()) return;
+        const request = {
+          id: uuidv4(),
+          recipe_id: id,
+          requested_by: user.id,
+          request_type: 'edit_global' as const,
+          proposed_changes: { title: value },
+          status: 'pending' as const,
+          created_at: new Date().toISOString()
+        };
+        await db.approval_requests.put(request);
+        await supabase.from('approval_requests').insert(request);
+        setDialog(null);
+        showToast('Edit request submitted to admin!');
+      },
+    });
   };
 
-  const handleRequestDelete = async () => {
+  const handleRequestDelete = () => {
     if (!user || !id) return;
-    if (window.confirm("Send a request to the admin to permanently delete this global recipe?")) {
-      const request = {
-        id: uuidv4(),
-        recipe_id: id,
-        requested_by: user.id,
-        request_type: 'delete_global' as const,
-        proposed_changes: {},
-        status: 'pending' as const,
-        created_at: new Date().toISOString()
-      };
-      await db.approval_requests.put(request);
-      await supabase.from('approval_requests').insert(request);
-      alert("Deletion request submitted to admin!");
-    }
+    setDialog({
+      title: 'Request Deletion',
+      message: 'Send a request to the admin to permanently delete this global recipe?',
+      confirmLabel: 'Send Request',
+      danger: true,
+      onConfirm: async () => {
+        const request = {
+          id: uuidv4(),
+          recipe_id: id,
+          requested_by: user.id,
+          request_type: 'delete_global' as const,
+          proposed_changes: {},
+          status: 'pending' as const,
+          created_at: new Date().toISOString()
+        };
+        await db.approval_requests.put(request);
+        await supabase.from('approval_requests').insert(request);
+        setDialog(null);
+        showToast('Deletion request submitted to admin!');
+      },
+    });
   };
 
   // 3. UI RENDERING: Loading states and safety checks
@@ -139,7 +192,7 @@ export function RecipeDetail() {
       {hiddenRecord && (
         <div className="bg-amber-500 text-white px-4 py-3 text-center flex items-center justify-center gap-4 shadow-md sticky top-0 z-50">
           <span>This recipe is currently hidden from your vault.</span>
-          <button 
+          <button
             onClick={handleUnhide}
             className="bg-white text-amber-900 px-3 py-1 rounded-lg text-sm font-semibold hover:bg-amber-50 transition-colors flex items-center gap-1">
             <Eye className="w-4 h-4" /> Unhide Recipe
@@ -156,23 +209,22 @@ export function RecipeDetail() {
 
       <div className="max-w-4xl mx-auto px-6 -mt-12 relative z-10">
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 border border-slate-100">
-          
+
           <div className="flex justify-between items-start mb-4">
             <div className="flex gap-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
                 {recipe.dish_type}
               </span>
-              {/* White Screen of Death Fix applied here */}
               {!isGlobal && (
                 <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
                   {(recipe.visibility || 'personal').replace('_', ' ')}
                 </span>
               )}
             </div>
-            
+
             {/* 5. DYNAMIC UI: Action Buttons based on state and ownership */}
             <div className="flex items-center gap-2">
-              
+
               {/* Global Recipe Tools: Hide, Edit Request, Delete Request */}
               {isGlobal && (
                 <>
@@ -208,9 +260,9 @@ export function RecipeDetail() {
               </button>
             </div>
           </div>
-          
+
           <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6">{recipe.title}</h1>
-          
+
           <div className="flex flex-wrap items-center text-slate-600 gap-6 mb-10 pb-10 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-orange-600" />
@@ -237,6 +289,18 @@ export function RecipeDetail() {
 
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!dialog}
+        title={dialog?.title ?? ''}
+        message={dialog?.message ?? ''}
+        confirmLabel={dialog?.confirmLabel}
+        danger={dialog?.danger}
+        input={dialog?.showInput ? { value: dialogInput, onChange: setDialogInput, placeholder: 'New title...' } : undefined}
+        onConfirm={() => dialog?.onConfirm(dialogInput)}
+        onCancel={() => setDialog(null)}
+      />
+      <Toast message={toast} />
     </div>
   );
 }
