@@ -1,11 +1,29 @@
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../lib/db';
+import { db, type Recipe } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Trash2, Eye, RefreshCw, ChefHat, EyeOff, AlertTriangle } from 'lucide-react';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Toast } from '../components/Toast';
+
+interface DialogState {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  onConfirm: () => void | Promise<void>;
+}
 
 export function Dashboard() {
   const { user } = useAuth();
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const trashedRecipes = useLiveQuery(async () => {
     if (!user) return [];
@@ -25,21 +43,36 @@ export function Dashboard() {
     await supabase.from('recipes').update({ deleted_at: null }).eq('id', id);
   };
 
-  // --- NEW: Permanent Delete Function ---
-  const permanentlyDelete = async (id: string) => {
-    if (!window.confirm("Are you absolutely sure? This will permanently delete this recipe and cannot be undone.")) return;
-    try {
-      // 1. Delete locally
-      await db.recipes.delete(id);
-      // 2. Delete from cloud
-      const { error } = await supabase.from('recipes').delete().eq('id', id);
-      if (error) {
-        console.error("Failed to delete from cloud:", error);
-        alert("Could not connect to the cloud to delete. Try again later.");
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const handlePermanentDelete = async (recipe: Recipe) => {
+    if (!user) return;
+    const favorite = await db.favorites.where({ recipe_id: recipe.id, user_id: user.id }).first();
+
+    setDialog({
+      title: 'Delete Forever',
+      message: favorite
+        ? `"${recipe.title || 'This recipe'}" is in your Favorites. Permanently deleting it will also remove it from your Favorites. This cannot be undone.`
+        : `Permanently delete "${recipe.title || 'this recipe'}"? This cannot be undone.`,
+      confirmLabel: 'Delete Forever',
+      danger: true,
+      onConfirm: async () => {
+        try {
+          if (favorite) {
+            await db.favorites.delete(favorite.id);
+            await supabase.from('favorites').delete().eq('id', favorite.id);
+          }
+
+          await db.recipes.delete(recipe.id);
+          const { error } = await supabase.from('recipes').delete().eq('id', recipe.id);
+          if (error) {
+            console.error('Failed to delete from cloud:', error);
+            showToast('Could not connect to the cloud to delete. Try again later.');
+          }
+        } catch (err) {
+          console.error(err);
+        }
+        setDialog(null);
+      },
+    });
   };
 
   const unhideRecipe = async (recipeId: string) => {
@@ -63,7 +96,7 @@ export function Dashboard() {
   return (
     <div className="min-h-full p-6 md:p-12 bg-slate-50">
       <div className="max-w-4xl mx-auto space-y-12">
-        
+
         <div>
           <h1 className="text-4xl font-bold text-slate-900 mb-2">Vault Management</h1>
           <p className="text-slate-600">Manage your hidden content and recover or permanently delete recipes.</p>
@@ -83,7 +116,7 @@ export function Dashboard() {
                 {hiddenRecipes.map(recipe => (
                   <li key={recipe.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="font-semibold text-slate-700">{recipe.title || 'Untitled'}</span>
-                    <button 
+                    <button
                       onClick={() => unhideRecipe(recipe.id)}
                       className="flex items-center gap-2 text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-100 hover:text-blue-600 transition-colors"
                     >
@@ -114,16 +147,15 @@ export function Dashboard() {
                       <span className="text-xs text-slate-500">Deleted: {new Date(recipe.deleted_at as string).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button 
+                      <button
                         onClick={() => restoreTrash(recipe.id)}
                         className="flex items-center gap-2 text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
                       >
                         <RefreshCw className="w-4 h-4" /> Restore
                       </button>
-                      
-                      {/* NEW: Permanent Delete Button */}
-                      <button 
-                        onClick={() => permanentlyDelete(recipe.id)}
+
+                      <button
+                        onClick={() => handlePermanentDelete(recipe)}
                         className="flex items-center gap-2 text-sm bg-red-100 border border-red-200 px-4 py-2 rounded-lg text-red-700 hover:bg-red-600 hover:text-white transition-colors"
                       >
                         <AlertTriangle className="w-4 h-4" /> Delete Forever
@@ -137,6 +169,17 @@ export function Dashboard() {
         </section>
 
       </div>
+
+      <ConfirmDialog
+        open={!!dialog}
+        title={dialog?.title ?? ''}
+        message={dialog?.message ?? ''}
+        confirmLabel={dialog?.confirmLabel}
+        danger={dialog?.danger}
+        onConfirm={() => dialog?.onConfirm()}
+        onCancel={() => setDialog(null)}
+      />
+      <Toast message={toast} />
     </div>
   );
 }

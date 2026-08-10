@@ -79,6 +79,12 @@ export function Admin() {
       } else if (req.request_type === 'delete_global') {
         await db.recipes.update(req.recipe_id, { deleted_at: now });
         await supabase.from('recipes').update({ deleted_at: now }).eq('id', req.recipe_id);
+
+        // Clean up everyone's favorite for this recipe, not just the requester's --
+        // a global recipe can be favorited by any family member.
+        const orphanedFavorites = await db.favorites.where('recipe_id').equals(req.recipe_id).toArray();
+        await db.favorites.bulkDelete(orphanedFavorites.map(f => f.id));
+        await supabase.from('favorites').delete().eq('recipe_id', req.recipe_id);
       }
     } else if (req.request_type === 'promote_to_global') {
       // Send it back to being a personal draft so the owner can revise and resubmit.

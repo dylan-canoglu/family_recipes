@@ -17,8 +17,11 @@ export function Favorites() {
     // 2. Extract just the recipe IDs
     const recipeIds = userFavorites.map(fav => fav.recipe_id);
     
-    // 3. Fetch the full recipe objects that match those IDs
-    return await db.recipes.where('id').anyOf(recipeIds).toArray();
+    // 3. Fetch the full recipe objects that match those IDs, excluding any
+    // that have been trashed (a stale favorite for a deleted recipe should
+    // never be shown as if it's still accessible).
+    const recipes = await db.recipes.where('id').anyOf(recipeIds).toArray();
+    return recipes.filter(r => !r.deleted_at);
   }, [user]); // Re-run if the user changes
 
   // State: Not Logged In

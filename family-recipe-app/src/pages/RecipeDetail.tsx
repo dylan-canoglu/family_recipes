@@ -101,13 +101,21 @@ export function RecipeDetail() {
     if (!user || !id) return;
     setDialog({
       title: 'Move to Trash',
-      message: 'Move this personal recipe to the Trash Bin?',
+      message: favorite
+        ? 'This recipe is in your Favorites. Moving it to the Trash Bin will also remove it from your Favorites. Continue?'
+        : 'Move this personal recipe to the Trash Bin?',
       confirmLabel: 'Move to Trash',
       danger: true,
       onConfirm: async () => {
         const now = new Date().toISOString();
         await db.recipes.update(id, { deleted_at: now });
         await supabase.from('recipes').update({ deleted_at: now }).eq('id', id);
+
+        if (favorite) {
+          await db.favorites.delete(favorite.id);
+          await supabase.from('favorites').delete().eq('id', favorite.id);
+        }
+
         setDialog(null);
         navigate('/recipes');
       },
