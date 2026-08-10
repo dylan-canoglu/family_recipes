@@ -7,8 +7,55 @@ import { syncRecipes, syncAllApprovalRequests } from '../lib/sync';
 import { ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Globe, Edit3, Trash2, ChefHat, Users, UserPlus, UserMinus } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
+import { formatIngredientList } from '../lib/format';
 
 type RequestWithRecipe = ApprovalRequest & { recipe: Recipe | undefined };
+
+const CHANGE_FIELD_LABELS: Record<string, string> = {
+  title: 'Title',
+  ingredients: 'Ingredients',
+  instructions: 'Instructions',
+  notes: 'Notes',
+};
+
+// Renders a proposed_changes payload as labeled, human-readable text
+// instead of a raw JSON dump -- an admin reviewing a request shouldn't
+// have to read code to know what's changing.
+function ProposedChangesSummary({ changes }: { changes: Record<string, unknown> }) {
+  const keys = Object.keys(changes).filter((key) => key in CHANGE_FIELD_LABELS);
+  if (keys.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-3 text-sm bg-slate-50 rounded-lg p-4 border border-slate-100">
+      <p className="text-slate-500 font-semibold text-xs uppercase tracking-wide">Proposed changes</p>
+      {keys.map((key) => {
+        const value = changes[key];
+        return (
+          <div key={key}>
+            <p className="text-slate-500 font-medium mb-1">{CHANGE_FIELD_LABELS[key]}</p>
+            {key === 'ingredients' ? (
+              Array.isArray(value) && value.length > 0 ? (
+                <ul className="space-y-1 text-slate-700">
+                  {formatIngredientList(value).map((ing, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-orange-500 mt-1">•</span><span>{ing}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-slate-400 italic">No ingredients</p>
+              )
+            ) : value ? (
+              <p className="text-slate-700 whitespace-pre-wrap">{String(value)}</p>
+            ) : (
+              <p className="text-slate-400 italic">Left blank</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface AdminRow {
   email: string;
@@ -197,12 +244,7 @@ export function Admin() {
                       </h3>
 
                       {req.request_type === 'edit_global' && req.proposed_changes && (
-                        <div className="mt-3 text-sm bg-slate-50 rounded-lg p-3 border border-slate-100">
-                          <p className="text-slate-500 mb-1">Proposed changes:</p>
-                          <pre className="whitespace-pre-wrap text-slate-700 font-mono text-xs">
-                            {JSON.stringify(req.proposed_changes, null, 2)}
-                          </pre>
-                        </div>
+                        <ProposedChangesSummary changes={req.proposed_changes} />
                       )}
                     </div>
 

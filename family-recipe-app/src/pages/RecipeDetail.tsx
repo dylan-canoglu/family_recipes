@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
 import { EditRecipeDialog, type EditRecipeFields } from '../components/EditRecipeDialog';
+import { formatIngredientList } from '../lib/format';
 
 interface DialogState {
   title: string;
@@ -172,7 +173,7 @@ export function RecipeDetail() {
     if (!user || !id || !recipe) return;
     setEditFields({
       title: recipe.title || '',
-      ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.join('\n') : String(recipe.ingredients ?? ''),
+      ingredients: formatIngredientList(recipe.ingredients).join('\n'),
       instructions: recipe.instructions || '',
       notes: recipe.notes || '',
     });
@@ -235,6 +236,7 @@ export function RecipeDetail() {
   const isGlobal = recipe.visibility === 'global';
   const isOwner = recipe.owner_id === user?.id;
   const isPersonal = recipe.visibility === 'personal' || !recipe.visibility;
+  const ingredientLines = formatIngredientList(recipe.ingredients);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -324,9 +326,13 @@ export function RecipeDetail() {
             <div className="md:col-span-1">
               <h2 className="text-2xl font-bold text-slate-900 mb-6">Ingredients</h2>
               <ul className="space-y-3 text-slate-700">
-                {Array.isArray(recipe.ingredients) ? recipe.ingredients.map((ing, i) => (
-                    <li key={i} className="flex items-start gap-2"><span className="text-orange-500 mt-1">•</span><span>{typeof ing === 'string' ? ing : JSON.stringify(ing)}</span></li>
-                  )) : <p>{String(recipe.ingredients)}</p>}
+                {ingredientLines.length > 0 ? (
+                  ingredientLines.map((ing, i) => (
+                    <li key={i} className="flex items-start gap-2"><span className="text-orange-500 mt-1">•</span><span>{ing}</span></li>
+                  ))
+                ) : (
+                  <p className="text-slate-400">No ingredients listed.</p>
+                )}
               </ul>
             </div>
             <div className="md:col-span-2">
