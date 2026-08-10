@@ -202,14 +202,6 @@ export function RecipeDetail() {
     showToast('Edit request submitted to admin!');
   };
 
-  const handleSaveEditAsNote = async () => {
-    const noteText = `Title: ${editFields.title}\n\nIngredients:\n${editFields.ingredients}\n\nInstructions:\n${editFields.instructions}\n\nNotes:\n${editFields.notes}`;
-    await upsertNote(noteText);
-    setNoteDraft(noteText);
-    setEditDialogOpen(false);
-    showToast('Saved to your personal notes.');
-  };
-
   const handleRequestDelete = () => {
     if (!user || !id) return;
     setDialog({
@@ -384,7 +376,6 @@ export function RecipeDetail() {
         fields={editFields}
         onChange={setEditFields}
         onSubmitForApproval={handleSubmitEditForApproval}
-        onSaveAsNote={handleSaveEditAsNote}
         onCancel={() => setEditDialogOpen(false)}
       />
       <Toast message={toast} />

@@ -12,7 +12,6 @@ interface EditRecipeDialogProps {
   fields: EditRecipeFields;
   onChange: (fields: EditRecipeFields) => void;
   onSubmitForApproval: () => void;
-  onSaveAsNote: () => void;
   onCancel: () => void;
 }
 
@@ -21,7 +20,6 @@ export function EditRecipeDialog({
   fields,
   onChange,
   onSubmitForApproval,
-  onSaveAsNote,
   onCancel,
 }: EditRecipeDialogProps) {
   if (!open) return null;
@@ -39,7 +37,7 @@ export function EditRecipeDialog({
           </button>
         </div>
         <p className="text-slate-500 text-sm mb-5">
-          Edit any fields below, then either send it to the admin for the global vault, or keep it just for yourself.
+          Edit any fields below, then send your suggestion to the admin for the global vault.
         </p>
 
         <div className="space-y-4 overflow-y-auto pr-1">
@@ -78,9 +76,6 @@ export function EditRecipeDialog({
         <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-slate-100 shrink-0">
           <button onClick={onCancel} className="px-4 py-2 rounded-lg text-slate-600 font-semibold hover:bg-slate-100 transition-colors">
             Cancel
-          </button>
-          <button onClick={onSaveAsNote} className="px-4 py-2 rounded-lg text-orange-700 bg-orange-50 font-semibold hover:bg-orange-100 transition-colors">
-            Keep as My Note Only
           </button>
           <button onClick={onSubmitForApproval} className="px-4 py-2 rounded-lg text-white bg-blue-600 font-semibold hover:bg-blue-700 transition-colors">
             Submit for Approval
