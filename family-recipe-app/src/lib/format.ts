@@ -25,3 +25,26 @@ export function formatIngredientList(ingredients: unknown): string[] {
   if (!Array.isArray(ingredients)) return [];
   return ingredients.map(formatIngredient);
 }
+
+const stripLeadingStepNumber = (line: string) => line.replace(/^\s*(?:step\s*)?\d+[.):-]?\s*/i, '').trim();
+
+// Splits free-form instructions text into discrete steps for numbered-list
+// display. Prefers existing line breaks (how most manually written recipes
+// are formatted); falls back to sentence boundaries for the single-paragraph
+// blobs common in the legacy imports, so those still read as steps.
+export function formatInstructionSteps(instructions: unknown): string[] {
+  if (typeof instructions !== 'string' || !instructions.trim()) return [];
+
+  const lines = instructions
+    .split(/\r?\n/)
+    .map(stripLeadingStepNumber)
+    .filter((l) => l.length > 0);
+  if (lines.length > 1) return lines;
+
+  const sentences = instructions
+    .split(/(?<=[.!?])\s+(?=[A-Z(])/)
+    .map((s) => stripLeadingStepNumber(s.trim()))
+    .filter((s) => s.length > 0);
+
+  return sentences.length > 0 ? sentences : [instructions.trim()];
+}

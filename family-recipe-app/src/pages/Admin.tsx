@@ -7,7 +7,7 @@ import { syncRecipes, syncAllApprovalRequests } from '../lib/sync';
 import { ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Globe, Edit3, Trash2, ChefHat, Users, UserPlus, UserMinus } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
-import { formatIngredientList } from '../lib/format';
+import { formatIngredientList, formatInstructionSteps } from '../lib/format';
 
 type RequestWithRecipe = ApprovalRequest & { recipe: Recipe | undefined };
 
@@ -45,6 +45,17 @@ function ProposedChangesSummary({ changes }: { changes: Record<string, unknown> 
               ) : (
                 <p className="text-slate-400 italic">No ingredients</p>
               )
+            ) : key === 'instructions' ? (
+              (() => {
+                const steps = formatInstructionSteps(value);
+                return steps.length > 0 ? (
+                  <ol className="space-y-1 text-slate-700 list-decimal list-outside pl-5 marker:text-orange-500 marker:font-semibold">
+                    {steps.map((step, i) => <li key={i}>{step}</li>)}
+                  </ol>
+                ) : (
+                  <p className="text-slate-400 italic">Left blank</p>
+                );
+              })()
             ) : value ? (
               <p className="text-slate-700 whitespace-pre-wrap">{String(value)}</p>
             ) : (

@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
 import { EditRecipeDialog, type EditRecipeFields } from '../components/EditRecipeDialog';
-import { formatIngredientList } from '../lib/format';
+import { formatIngredientList, formatInstructionSteps } from '../lib/format';
 
 interface DialogState {
   title: string;
@@ -237,6 +237,7 @@ export function RecipeDetail() {
   const isOwner = recipe.owner_id === user?.id;
   const isPersonal = recipe.visibility === 'personal' || !recipe.visibility;
   const ingredientLines = formatIngredientList(recipe.ingredients);
+  const instructionSteps = formatInstructionSteps(recipe.instructions);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -337,9 +338,15 @@ export function RecipeDetail() {
             </div>
             <div className="md:col-span-2">
               <h2 className="text-2xl font-bold text-slate-900 mb-6">Instructions</h2>
-              <div className="prose prose-slate max-w-none text-slate-700 whitespace-pre-wrap">
-                {recipe.instructions || "No instructions provided for this recipe."}
-              </div>
+              {instructionSteps.length > 0 ? (
+                <ol className="space-y-4 text-slate-700 list-decimal list-outside pl-5 marker:text-orange-500 marker:font-semibold">
+                  {instructionSteps.map((step, i) => (
+                    <li key={i} className="pl-1">{step}</li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-slate-400">No instructions provided for this recipe.</p>
+              )}
             </div>
           </div>
 
