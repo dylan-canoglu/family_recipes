@@ -1,22 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { ArrowLeft, Clock, ChefHat, Heart, EyeOff, Eye, Trash2, Globe, Edit3 } from 'lucide-react';
+import { ArrowLeft, Clock, ChefHat, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
+import { EditRecipeDialog, type EditRecipeFields } from '../components/EditRecipeDialog';
 
 interface DialogState {
   title: string;
   message: string;
   confirmLabel?: string;
   danger?: boolean;
-  showInput?: boolean;
-  onConfirm: (inputValue: string) => void | Promise<void>;
+  onConfirm: () => void | Promise<void>;
 }
+
+const EMPTY_EDIT_FIELDS: EditRecipeFields = { title: '', ingredients: '', instructions: '', notes: '' };
 
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -24,8 +26,12 @@ export function RecipeDetail() {
   const navigate = useNavigate();
 
   const [dialog, setDialog] = useState<DialogState | null>(null);
-  const [dialogInput, setDialogInput] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFields, setEditFields] = useState<EditRecipeFields>(EMPTY_EDIT_FIELDS);
+
+  const [noteDraft, setNoteDraft] = useState('');
 
   const showToast = (message: string) => {
     setToast(message);
@@ -44,6 +50,16 @@ export function RecipeDetail() {
     () => (user && id) ? db.user_hidden_recipes.where({ user_id: user.id, recipe_id: id }).first() : undefined,
     [user, id]
   );
+
+  const myNote = useLiveQuery(
+    () => (user && id) ? db.user_recipe_notes.where({ user_id: user.id, recipe_id: id }).first() : undefined,
+    [user, id]
+  );
+
+  // Populate the notes textarea once the existing note (if any) has loaded.
+  useEffect(() => {
+    if (myNote) setNoteDraft(myNote.note_text);
+  }, [myNote]);
 
   // 2. ACTION HANDLERS: The logic executed when a user clicks a button.
   const toggleFavorite = async () => {
@@ -125,31 +141,65 @@ export function RecipeDetail() {
     });
   };
 
+  // Saves (or replaces) the user's private note for this recipe, both locally and in the cloud.
+  const upsertNote = async (noteText: string) => {
+    if (!user || !id) return;
+    const now = new Date().toISOString();
+    if (myNote) {
+      await db.user_recipe_notes.update(myNote.id, { note_text: noteText, updated_at: now });
+      await supabase.from('user_recipe_notes').update({ note_text: noteText, updated_at: now }).eq('id', myNote.id);
+    } else {
+      const note = { id: uuidv4(), user_id: user.id, recipe_id: id, note_text: noteText, created_at: now, updated_at: now };
+      await db.user_recipe_notes.put(note);
+      await supabase.from('user_recipe_notes').insert(note);
+    }
+  };
+
+  const saveNoteDraft = async () => {
+    await upsertNote(noteDraft);
+    showToast('Note saved.');
+  };
+
   const handleRequestEdit = () => {
     if (!user || !id || !recipe) return;
-    setDialogInput(recipe.title);
-    setDialog({
-      title: 'Request an Edit',
-      message: 'Suggest a new title or describe the edits you want for this global recipe.',
-      confirmLabel: 'Send Request',
-      showInput: true,
-      onConfirm: async (value) => {
-        if (!value.trim()) return;
-        const request = {
-          id: uuidv4(),
-          recipe_id: id,
-          requested_by: user.id,
-          request_type: 'edit_global' as const,
-          proposed_changes: { title: value },
-          status: 'pending' as const,
-          created_at: new Date().toISOString()
-        };
-        await db.approval_requests.put(request);
-        await supabase.from('approval_requests').insert(request);
-        setDialog(null);
-        showToast('Edit request submitted to admin!');
-      },
+    setEditFields({
+      title: recipe.title || '',
+      ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.join('\n') : String(recipe.ingredients ?? ''),
+      instructions: recipe.instructions || '',
+      notes: recipe.notes || '',
     });
+    setEditDialogOpen(true);
+  };
+
+  const handleSubmitEditForApproval = async () => {
+    if (!user || !id) return;
+    const proposedChanges = {
+      title: editFields.title,
+      ingredients: editFields.ingredients.split('\n').map(i => i.trim()).filter(i => i !== ''),
+      instructions: editFields.instructions,
+      notes: editFields.notes,
+    };
+    const request = {
+      id: uuidv4(),
+      recipe_id: id,
+      requested_by: user.id,
+      request_type: 'edit_global' as const,
+      proposed_changes: proposedChanges,
+      status: 'pending' as const,
+      created_at: new Date().toISOString()
+    };
+    await db.approval_requests.put(request);
+    await supabase.from('approval_requests').insert(request);
+    setEditDialogOpen(false);
+    showToast('Edit request submitted to admin!');
+  };
+
+  const handleSaveEditAsNote = async () => {
+    const noteText = `Title: ${editFields.title}\n\nIngredients:\n${editFields.ingredients}\n\nInstructions:\n${editFields.instructions}\n\nNotes:\n${editFields.notes}`;
+    await upsertNote(noteText);
+    setNoteDraft(noteText);
+    setEditDialogOpen(false);
+    showToast('Saved to your personal notes.');
   };
 
   const handleRequestDelete = () => {
@@ -287,6 +337,28 @@ export function RecipeDetail() {
             </div>
           </div>
 
+          {/* My Personal Notes: private per-user, separate from the shared recipe content */}
+          {user && (
+            <div className="mt-12 pt-8 border-t border-slate-100">
+              <h2 className="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2">
+                <StickyNote className="w-5 h-5 text-orange-500" /> My Personal Notes
+              </h2>
+              <p className="text-sm text-slate-500 mb-3">Private to you — never shared or submitted to the global vault.</p>
+              <textarea
+                rows={4}
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Jot down your own tweaks, substitutions, or reminders..."
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-colors"
+              />
+              <div className="flex justify-end mt-2">
+                <button onClick={saveNoteDraft} className="flex items-center gap-2 text-sm bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 transition-colors">
+                  <Save className="w-4 h-4" /> Save Note
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -296,9 +368,16 @@ export function RecipeDetail() {
         message={dialog?.message ?? ''}
         confirmLabel={dialog?.confirmLabel}
         danger={dialog?.danger}
-        input={dialog?.showInput ? { value: dialogInput, onChange: setDialogInput, placeholder: 'New title...' } : undefined}
-        onConfirm={() => dialog?.onConfirm(dialogInput)}
+        onConfirm={() => dialog?.onConfirm()}
         onCancel={() => setDialog(null)}
+      />
+      <EditRecipeDialog
+        open={editDialogOpen}
+        fields={editFields}
+        onChange={setEditFields}
+        onSubmitForApproval={handleSubmitEditForApproval}
+        onSaveAsNote={handleSaveEditAsNote}
+        onCancel={() => setEditDialogOpen(false)}
       />
       <Toast message={toast} />
     </div>
