@@ -106,7 +106,7 @@ export function RecipeDetail() {
               {/* Show Status Badge if not global */}
               {!isGlobal && (
                 <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
-                  {recipe.visibility.replace('_', ' ')}
+                  {(recipe.visibility || 'personal').replace('_', ' ')}
                 </span>
               )}
             </div>
