@@ -261,11 +261,15 @@ export function RecipeDetail() {
         </div>
       )}
 
-      <div className="h-64 bg-slate-800 w-full flex items-center justify-center relative">
-        <Link to="/recipes" className="absolute top-6 left-6 text-white hover:text-orange-400 flex items-center gap-2 bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm transition-colors">
+      <div className="h-64 bg-slate-800 w-full flex items-center justify-center relative overflow-hidden">
+        <Link to="/recipes" className="absolute top-6 left-6 text-white hover:text-orange-400 flex items-center gap-2 bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm transition-colors z-10">
           <ArrowLeft className="w-5 h-5" /> Back
         </Link>
-        <ChefHat className="w-20 h-20 text-slate-600 opacity-50" />
+        {recipe.image_path ? (
+          <img src={recipe.image_path} alt={recipe.title} className="w-full h-full object-cover" />
+        ) : (
+          <ChefHat className="w-20 h-20 text-slate-600 opacity-50" />
+        )}
       </div>
 
       <div className="max-w-4xl mx-auto px-6 -mt-12 relative z-10">

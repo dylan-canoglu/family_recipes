@@ -122,8 +122,12 @@ export function RecipeList() {
                 </div>
               )}
 
-              <div className="h-48 bg-slate-100 w-full flex items-center justify-center border-b border-slate-100 group-hover:bg-orange-50 transition-colors">
-                <ChefHat className="w-8 h-8 text-slate-300 group-hover:text-orange-200 transition-colors" />
+              <div className="h-48 bg-slate-100 w-full flex items-center justify-center border-b border-slate-100 group-hover:bg-orange-50 transition-colors overflow-hidden">
+                {recipe.image_path ? (
+                  <img src={recipe.image_path} alt={recipe.title || 'Recipe photo'} className="w-full h-full object-cover" />
+                ) : (
+                  <ChefHat className="w-8 h-8 text-slate-300 group-hover:text-orange-200 transition-colors" />
+                )}
               </div>
               
               <div className="p-5">
