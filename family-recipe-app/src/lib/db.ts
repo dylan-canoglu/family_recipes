@@ -1,0 +1,66 @@
+import Dexie, { type Table } from 'dexie';
+
+// --- UPDATED RECIPE INTERFACE ---
+export interface Recipe {
+  id: string; household_id: string; title: string; cuisine: string | null;
+  dish_type: 'Main Dish' | 'Appetizer' | 'Dessert' | 'Pastry' | 'Soup' | 'Sauce' | 'Side' | 'Breakfast' | 'Drink';
+  complexity: 'Easy' | 'Medium' | 'Hard'; prep_time_min: number; cook_time_min: number; total_time_min: number; 
+  base_servings: number; ingredients: any; instructions: string; notes: string; image_path: string;
+  source_type: 'family' | 'manual' | 'imported_url'; source_url: string; created_at: Date | string; updated_at: Date | string;
+  // New Fields:
+  owner_id?: string | null;
+  visibility: 'personal' | 'pending_global' | 'global';
+  deleted_at?: Date | string | null;
+}
+
+export interface CookingLog { id: string; recipe_id: string; user_id: string; cooked_at: Date | string; rating: number; notes: string; }
+export interface Favorite { id: string; recipe_id: string; user_id: string; created_at: Date | string; }
+export interface MealPlan { id: string; household_id: string; plan_date: Date | string; meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'snack'; recipe_id: string; created_at: Date | string; }
+export interface UserRecipeNote { id: string; user_id: string; recipe_id: string; note_text: string; created_at: Date | string; updated_at: Date | string; }
+
+// --- NEW INTERFACES ---
+export interface UserHiddenRecipe {
+  id: string;
+  user_id: string;
+  recipe_id: string;
+  created_at: Date | string;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  recipe_id: string;
+  requested_by: string;
+  request_type: 'promote_to_global' | 'edit_global' | 'delete_global';
+  proposed_changes?: any;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: Date | string;
+  resolved_at?: Date | string | null;
+}
+
+export class RecipeVaultDB extends Dexie {
+  recipes!: Table<Recipe>;
+  cooking_logs!: Table<CookingLog>;
+  favorites!: Table<Favorite>;
+  meal_plan!: Table<MealPlan>;
+  user_recipe_notes!: Table<UserRecipeNote>;
+  user_hidden_recipes!: Table<UserHiddenRecipe>;
+  approval_requests!: Table<ApprovalRequest>;
+
+  constructor() {
+    super('RecipeVaultDB');
+    
+    // We only need to define the LATEST schema in Dexie versioning when overriding completely
+    this.version(3).stores({
+      // Added owner_id and visibility to indexes for fast filtering
+      recipes: 'id, household_id, title, cuisine, dish_type, complexity, visibility, owner_id',
+      cooking_logs: 'id, recipe_id, user_id, cooked_at',
+      favorites: 'id, recipe_id, user_id',
+      meal_plan: 'id, household_id, plan_date, meal_slot, recipe_id',
+      user_recipe_notes: 'id, user_id, recipe_id',
+      user_hidden_recipes: 'id, user_id, recipe_id',
+      approval_requests: 'id, recipe_id, requested_by, status'
+    });
+  }
+}
+
+export const db = new RecipeVaultDB();

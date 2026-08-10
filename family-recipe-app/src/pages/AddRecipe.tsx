@@ -1,0 +1,238 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { db } from '../lib/db';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
+import { PlusCircle, Clock, ChefHat, Save } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+
+export function AddRecipe() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form State
+  const [title, setTitle] = useState('');
+  const [cuisine, setCuisine] = useState('');
+  const [dishType, setDishType] = useState('Main Dish');
+  const [complexity, setComplexity] = useState('Medium');
+  const [prepTime, setPrepTime] = useState(15);
+  const [cookTime, setCookTime] = useState(30);
+  const [servings, setServings] = useState(4);
+  const [ingredients, setIngredients] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return setError("You must be logged in to add a recipe.");
+    
+    setLoading(true);
+    setError(null);
+
+    // 1. Prepare the data
+    const newId = uuidv4();
+    // Parse ingredients from a simple multiline text box into an array
+    const parsedIngredients = ingredients.split('\n').map(i => i.trim()).filter(i => i !== '');
+
+    // Note: Your Supabase table calculates total_time_min automatically via GENERATED ALWAYS.
+    // If we send total_time_min in the Supabase insert, it will crash. 
+    // We omit it for Supabase, but calculate it locally for Dexie.
+    const baseRecipe = {
+        id: newId,
+        household_id: 'daf749d9-2b65-44fc-95ff-cc2824412755', 
+        title,
+        cuisine: cuisine || null,
+        dish_type: dishType as any,
+        complexity: complexity as any,
+        prep_time_min: Number(prepTime),
+        cook_time_min: Number(cookTime),
+        base_servings: Number(servings),
+        ingredients: parsedIngredients,
+        instructions,
+        notes,
+        image_path: '',
+        source_type: 'manual' as const,
+        source_url: '',
+        // --- THE NEW FIELDS ---
+        owner_id: user.id,
+        visibility: 'personal' as const,
+        deleted_at: null,
+      };
+
+    try {
+      // 2. Push to Supabase (Cloud)
+      const { error: supabaseError } = await supabase.from('recipes').insert([baseRecipe]);
+      
+      if (supabaseError) throw supabaseError;
+
+      // 3. Save to Dexie (Local Offline Vault)
+      await db.recipes.put({
+        ...baseRecipe,
+        total_time_min: Number(prepTime) + Number(cookTime),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+      // 4. Success! Redirect to the new recipe's page
+      navigate(`/recipes/${newId}`);
+
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to save recipe. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-full p-6 md:p-12">
+      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        {/* Header */}
+        <div className="bg-orange-50 border-b border-orange-100 p-8 flex items-center gap-4">
+          <div className="bg-orange-100 p-3 rounded-full text-orange-600">
+            <PlusCircle className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Add New Recipe</h1>
+            <p className="text-orange-700 mt-1">Contribute a new dish to the family vault.</p>
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium border border-red-100">
+              {error}
+            </div>
+          )}
+
+          {/* Basic Info Group */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <ChefHat className="w-5 h-5 text-orange-500" /> Basic Details
+            </h3>
+            
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Recipe Title *</label>
+              <input 
+                type="text" required value={title} onChange={e => setTitle(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-colors"
+                placeholder="e.g., Grand-mère's Quiche Lorraine"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Dish Type *</label>
+                <select 
+                  value={dishType} onChange={e => setDishType(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                >
+                  {['Main Dish', 'Appetizer', 'Dessert', 'Pastry', 'Soup', 'Sauce', 'Side', 'Breakfast', 'Drink'].map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Complexity *</label>
+                <select 
+                  value={complexity} onChange={e => setComplexity(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                >
+                  <option value="Easy">Easy</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Hard">Hard</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Cuisine</label>
+                <input 
+                  type="text" value={cuisine} onChange={e => setCuisine(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                  placeholder="e.g., French, Turkish"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Time & Yield Group */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <Clock className="w-5 h-5 text-orange-500" /> Time & Yield
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Prep Time (min)</label>
+                <input 
+                  type="number" min="0" required value={prepTime} onChange={e => setPrepTime(Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Cook Time (min)</label>
+                <input 
+                  type="number" min="0" required value={cookTime} onChange={e => setCookTime(Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Servings</label>
+                <input 
+                  type="number" min="1" required value={servings} onChange={e => setServings(Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Directions Group */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                Ingredients <span className="text-slate-400 font-normal">(One per line)</span> *
+              </label>
+              <textarea 
+                required rows={6} value={ingredients} onChange={e => setIngredients(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                placeholder="2 cups flour&#10;1 tsp salt&#10;3 large eggs..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Instructions *</label>
+              <textarea 
+                required rows={8} value={instructions} onChange={e => setInstructions(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                placeholder="1. Preheat the oven to 180°C...&#10;2. Whisk the eggs..."
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Family Notes (Optional)</label>
+              <textarea 
+                rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
+                placeholder="Ergun always adds an extra pinch of black pepper..."
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="pt-4 border-t border-slate-100 flex justify-end">
+            <button 
+              type="submit" disabled={loading}
+              className="flex items-center gap-2 bg-orange-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-orange-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : <><Save className="w-5 h-5" /> Save to Vault</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

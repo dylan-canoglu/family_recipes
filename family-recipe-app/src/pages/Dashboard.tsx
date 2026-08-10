@@ -1,0 +1,142 @@
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../lib/db';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
+import { Trash2, Eye, RefreshCw, ChefHat, EyeOff, AlertTriangle } from 'lucide-react';
+
+export function Dashboard() {
+  const { user } = useAuth();
+
+  const trashedRecipes = useLiveQuery(async () => {
+    if (!user) return [];
+    const all = await db.recipes.toArray();
+    return all.filter(r => r.deleted_at != null && r.owner_id === user.id);
+  }, [user]);
+
+  const hiddenRecipes = useLiveQuery(async () => {
+    if (!user) return [];
+    const hiddenRecords = await db.user_hidden_recipes.where({ user_id: user.id }).toArray();
+    const ids = hiddenRecords.map(h => h.recipe_id);
+    return await db.recipes.where('id').anyOf(ids).toArray();
+  }, [user]);
+
+  const restoreTrash = async (id: string) => {
+    await db.recipes.update(id, { deleted_at: null });
+    await supabase.from('recipes').update({ deleted_at: null }).eq('id', id);
+  };
+
+  // --- NEW: Permanent Delete Function ---
+  const permanentlyDelete = async (id: string) => {
+    if (!window.confirm("Are you absolutely sure? This will permanently delete this recipe and cannot be undone.")) return;
+    try {
+      // 1. Delete locally
+      await db.recipes.delete(id);
+      // 2. Delete from cloud
+      const { error } = await supabase.from('recipes').delete().eq('id', id);
+      if (error) {
+        console.error("Failed to delete from cloud:", error);
+        alert("Could not connect to the cloud to delete. Try again later.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const unhideRecipe = async (recipeId: string) => {
+    if (!user) return;
+    const record = await db.user_hidden_recipes.where({ recipe_id: recipeId, user_id: user.id }).first();
+    if (record) {
+      await db.user_hidden_recipes.delete(record.id);
+      await supabase.from('user_hidden_recipes').delete().eq('id', record.id);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
+        <ChefHat className="w-12 h-12 text-slate-300 mb-4" />
+        <h2 className="text-2xl font-bold text-slate-900">Sign in to view your Dashboard</h2>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-full p-6 md:p-12 bg-slate-50">
+      <div className="max-w-4xl mx-auto space-y-12">
+        
+        <div>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Vault Management</h1>
+          <p className="text-slate-600">Manage your hidden content and recover or permanently delete recipes.</p>
+        </div>
+
+        {/* HIDDEN RECIPES SECTION */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-slate-100 p-4 border-b border-slate-200 flex items-center gap-3">
+            <EyeOff className="w-6 h-6 text-slate-600" />
+            <h2 className="text-xl font-bold text-slate-800">Hidden Recipes</h2>
+          </div>
+          <div className="p-6">
+            {!hiddenRecipes || hiddenRecipes.length === 0 ? (
+              <p className="text-slate-500 text-center py-6">You have no hidden recipes.</p>
+            ) : (
+              <ul className="space-y-4">
+                {hiddenRecipes.map(recipe => (
+                  <li key={recipe.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="font-semibold text-slate-700">{recipe.title || 'Untitled'}</span>
+                    <button 
+                      onClick={() => unhideRecipe(recipe.id)}
+                      className="flex items-center gap-2 text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-100 hover:text-blue-600 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" /> Unhide
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        {/* TRASH BIN SECTION */}
+        <section className="bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
+          <div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-3">
+            <Trash2 className="w-6 h-6 text-red-500" />
+            <h2 className="text-xl font-bold text-red-800">Trash Bin</h2>
+          </div>
+          <div className="p-6">
+            {!trashedRecipes || trashedRecipes.length === 0 ? (
+              <p className="text-slate-500 text-center py-6">Your trash bin is empty.</p>
+            ) : (
+              <ul className="space-y-4">
+                {trashedRecipes.map(recipe => (
+                  <li key={recipe.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-red-50/50 rounded-xl border border-red-100">
+                    <div>
+                      <span className="font-semibold text-slate-700 block">{recipe.title || 'Untitled'}</span>
+                      <span className="text-xs text-slate-500">Deleted: {new Date(recipe.deleted_at as string).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => restoreTrash(recipe.id)}
+                        className="flex items-center gap-2 text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
+                      >
+                        <RefreshCw className="w-4 h-4" /> Restore
+                      </button>
+                      
+                      {/* NEW: Permanent Delete Button */}
+                      <button 
+                        onClick={() => permanentlyDelete(recipe.id)}
+                        className="flex items-center gap-2 text-sm bg-red-100 border border-red-200 px-4 py-2 rounded-lg text-red-700 hover:bg-red-600 hover:text-white transition-colors"
+                      >
+                        <AlertTriangle className="w-4 h-4" /> Delete Forever
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+      </div>
+    </div>
+  );
+}
