@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
-import { 
-  ChefHat, Search, Compass, Heart, 
-  LayoutDashboard, PlusCircle, LogIn, LogOut, 
-  Menu, X, ChevronLeft, ChevronRight 
+import {
+  ChefHat, Search, Compass, Heart,
+  LayoutDashboard, PlusCircle, LogIn, LogOut,
+  Menu, X, ChevronLeft, ChevronRight, ShieldCheck
 } from 'lucide-react';
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Desktop collapse state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile overlay state
@@ -24,6 +24,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Favorites', path: '/favorites', icon: Heart },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Add Recipe', path: '/add', icon: PlusCircle },
+    ...(isAdmin ? [{ name: 'Admin', path: '/admin', icon: ShieldCheck }] : []),
   ];
 
   const NavLinks = () => (
