@@ -47,7 +47,12 @@ export async function syncUserData(userId: string) {
     const { data: approvals } = await supabase.from('approval_requests').select('*').eq('requested_by', userId);
     if (approvals) await db.approval_requests.bulkPut(approvals);
 
-    console.log('Successfully synced all user data (Favorites, Notes, Hidden, Approvals).');
+    // 5. Cooking Logs -- RLS keeps these private to the user, so this only
+    // ever returns their own. Family-wide stats come from syncRecipeStats().
+    const { data: logs } = await supabase.from('cooking_logs').select('*').eq('user_id', userId);
+    if (logs) await db.cooking_logs.bulkPut(logs);
+
+    console.log('Successfully synced all user data (Favorites, Notes, Hidden, Approvals, Cooking Logs).');
   } catch (err) {
     console.error('User data sync failed:', err);
   }

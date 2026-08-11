@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye } from 'lucide-react';
+import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye, CookingPot, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -12,6 +12,8 @@ import { EditRecipeDialog, type EditRecipeFields } from '../components/EditRecip
 import { formatIngredientList, formatInstructionSteps } from '../lib/format';
 import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
 import { FlipCard } from '../components/FlipCard';
+import { StarRating } from '../components/StarRating';
+import { LogCookDialog, type CookLogFields } from '../components/LogCookDialog';
 import { syncRecipePhotos } from '../lib/sync';
 
 interface DialogState {
@@ -23,6 +25,9 @@ interface DialogState {
 }
 
 const EMPTY_EDIT_FIELDS: EditRecipeFields = { title: '', ingredients: '', instructions: '', notes: '' };
+
+const todayISODate = () => new Date().toISOString().slice(0, 10);
+const emptyCookLogFields = (): CookLogFields => ({ cooked_at: todayISODate(), rating: 0, notes: '' });
 
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +44,10 @@ export function RecipeDetail() {
   const [showOriginal, setShowOriginal] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const [logDialogOpen, setLogDialogOpen] = useState(false);
+  const [logFields, setLogFields] = useState<CookLogFields>(emptyCookLogFields);
+  const [savingLog, setSavingLog] = useState(false);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -67,6 +76,13 @@ export function RecipeDetail() {
     () => id ? db.recipe_photos.where({ recipe_id: id }).toArray() : [],
     [id]
   ) ?? [];
+
+  // The user's own cooks of this recipe, most recent first.
+  const cookLogs = useLiveQuery(async () => {
+    if (!user || !id) return [];
+    const logs = await db.cooking_logs.where({ recipe_id: id, user_id: user.id }).toArray();
+    return logs.sort((a, b) => String(b.cooked_at).localeCompare(String(a.cooked_at)));
+  }, [id, user]) ?? [];
 
   // Photos are visible to everyone, so pull them fresh for whichever recipe is open.
   useEffect(() => {
@@ -129,6 +145,57 @@ export function RecipeDetail() {
         await supabase.from('recipe_photos').delete().eq('id', photo.id);
         const storagePath = photo.image_path.split('/recipe-images/')[1];
         if (storagePath) await supabase.storage.from('recipe-images').remove([storagePath]);
+        setDialog(null);
+      },
+    });
+  };
+
+  const openLogDialog = () => {
+    if (!user) return showToast('Please sign in to log a cook!');
+    setLogFields(emptyCookLogFields());
+    setLogDialogOpen(true);
+  };
+
+  const handleSaveCookLog = async () => {
+    if (!user || !id) return;
+    setSavingLog(true);
+    try {
+      const log = {
+        id: uuidv4(),
+        recipe_id: id,
+        user_id: user.id,
+        // Stored as a date-only string; the dialog never collects a time.
+        cooked_at: logFields.cooked_at,
+        rating: logFields.rating,
+        notes: logFields.notes,
+      };
+      // Local first: logging a cook has to work in a kitchen with no signal.
+      await db.cooking_logs.put(log);
+      setLogDialogOpen(false);
+
+      const { error } = await supabase.from('cooking_logs').insert(log);
+      if (error) {
+        console.error('Failed to push cooking log to cloud:', error);
+        showToast('Cook logged locally — it will need re-syncing.');
+      } else {
+        showToast('Cook logged!');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Could not save this cook. Try again later.');
+    } finally {
+      setSavingLog(false);
+    }
+  };
+
+  const handleDeleteCookLog = (logId: string) => {
+    setDialog({
+      title: 'Remove Cook',
+      message: 'Remove this entry from your cooking history?',
+      confirmLabel: 'Remove',
+      danger: true,
+      onConfirm: async () => {
+        await db.cooking_logs.delete(logId);
+        await supabase.from('cooking_logs').delete().eq('id', logId);
         setDialog(null);
       },
     });
@@ -300,6 +367,11 @@ export function RecipeDetail() {
   const ingredientLines = formatIngredientList(useOriginal ? recipe.ingredients : recipe.ingredients_en);
   const instructionSteps = formatInstructionSteps(useOriginal ? recipe.instructions : recipe.instructions_en);
 
+  const ratedLogs = cookLogs.filter((log) => log.rating > 0);
+  const myAverageRating = ratedLogs.length > 0
+    ? ratedLogs.reduce((sum, log) => sum + log.rating, 0) / ratedLogs.length
+    : null;
+
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
       {/* 4. DYNAMIC UI: Hidden Banner Notice */}
@@ -447,6 +519,56 @@ export function RecipeDetail() {
             }
           />
 
+          {/* My Cooking History: every time this user actually made the dish */}
+          {user && (
+            <div className="mt-12 pt-8 border-t border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <CookingPot className="w-5 h-5 text-orange-500" /> My Cooking History
+                </h2>
+                <button
+                  onClick={openLogDialog}
+                  className="flex items-center gap-2 text-sm bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+                >
+                  <CookingPot className="w-4 h-4" /> Log a Cook
+                </button>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                {cookLogs.length === 0
+                  ? "You haven't cooked this one yet."
+                  : `Cooked ${cookLogs.length} time${cookLogs.length > 1 ? 's' : ''}` +
+                    (myAverageRating !== null ? ` · your average rating ${myAverageRating.toFixed(1)} / 5` : '')}
+              </p>
+
+              {cookLogs.length > 0 && (
+                <ul className="space-y-3">
+                  {cookLogs.map((log) => (
+                    <li key={log.id} className="flex items-start justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <StarRating value={log.rating} size="sm" />
+                          <span className="text-sm text-slate-500">
+                            {new Date(`${String(log.cooked_at).slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, {
+                              year: 'numeric', month: 'long', day: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                        {log.notes && <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap break-words">{log.notes}</p>}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteCookLog(log.id)}
+                        title="Remove this entry"
+                        className="p-2 rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors flex-shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {/* My Personal Notes: private per-user, separate from the shared recipe content */}
           {user && (
             <div className="mt-12 pt-8 border-t border-slate-100">
@@ -480,6 +602,14 @@ export function RecipeDetail() {
         danger={dialog?.danger}
         onConfirm={() => dialog?.onConfirm()}
         onCancel={() => setDialog(null)}
+      />
+      <LogCookDialog
+        open={logDialogOpen}
+        fields={logFields}
+        onChange={setLogFields}
+        onSave={handleSaveCookLog}
+        onCancel={() => setLogDialogOpen(false)}
+        saving={savingLog}
       />
       <EditRecipeDialog
         open={editDialogOpen}
