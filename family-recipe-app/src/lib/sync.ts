@@ -70,6 +70,37 @@ export async function syncAllApprovalRequests() {
   }
 }
 
+// Family-wide cooking aggregates for the Discovery tab. Raw cooking_logs rows
+// stay private under RLS; this RPC returns counts and averages only. Requires
+// supabase-cook-stats.sql to have been applied -- if it hasn't, this logs and
+// leaves the local cache untouched, so Discovery degrades to "no data yet"
+// rather than breaking.
+export async function syncRecipeStats() {
+  try {
+    const { data, error } = await supabase.rpc('recipe_cook_stats');
+    if (error) throw error;
+    if (!data) return;
+
+    const stats = data.map((row: any) => ({
+      recipe_id: row.recipe_id,
+      cook_count: Number(row.cook_count) || 0,
+      cook_count_mine: Number(row.cook_count_mine) || 0,
+      avg_rating: row.avg_rating == null ? null : Number(row.avg_rating),
+      rating_count: Number(row.rating_count) || 0,
+      last_cooked_at: row.last_cooked_at ?? null,
+    }));
+
+    // Replace wholesale: a recipe whose only log was deleted drops out of the
+    // RPC result entirely, and a merge would leave its stale counts behind.
+    await db.transaction('rw', db.recipe_stats, async () => {
+      await db.recipe_stats.clear();
+      await db.recipe_stats.bulkPut(stats);
+    });
+  } catch (err) {
+    console.error('Recipe stats sync failed:', err);
+  }
+}
+
 // Food photos are visible to every family member, not just the uploader,
 // so this pulls per-recipe on demand rather than syncing the whole table.
 export async function syncRecipePhotos(recipeId: string) {

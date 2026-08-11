@@ -53,6 +53,20 @@ export interface RecipePhoto {
   created_at: Date | string;
 }
 
+// Family-wide cooking aggregates, pulled from the recipe_cook_stats() RPC.
+// cooking_logs itself is private per-user under RLS, so these pre-aggregated
+// counts are the only family-wide view of who has cooked what -- deliberately
+// without notes or user ids. Cached locally so Discovery works offline.
+export interface RecipeStat {
+  recipe_id: string;
+  cook_count: number;
+  // How many of those cooks are the signed-in user's own.
+  cook_count_mine: number;
+  avg_rating: number | null;
+  rating_count: number;
+  last_cooked_at: string | null;
+}
+
 export class RecipeVaultDB extends Dexie {
   recipes!: Table<Recipe>;
   cooking_logs!: Table<CookingLog>;
@@ -62,6 +76,7 @@ export class RecipeVaultDB extends Dexie {
   user_hidden_recipes!: Table<UserHiddenRecipe>;
   approval_requests!: Table<ApprovalRequest>;
   recipe_photos!: Table<RecipePhoto>;
+  recipe_stats!: Table<RecipeStat>;
 
   constructor() {
     super('RecipeVaultDB');
@@ -80,6 +95,12 @@ export class RecipeVaultDB extends Dexie {
 
     this.version(4).stores({
       recipe_photos: 'id, recipe_id, user_id, created_at'
+    });
+
+    // Keyed by recipe_id -- one aggregate row per recipe, replaced wholesale
+    // on each sync rather than merged.
+    this.version(5).stores({
+      recipe_stats: 'recipe_id, cook_count, avg_rating'
     });
   }
 }

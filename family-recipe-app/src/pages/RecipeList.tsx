@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
-import { db } from '../lib/db';
+import { getVisibleRecipes } from '../lib/recipes';
 import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
 import { ChefHat, Clock, Search } from 'lucide-react';
@@ -15,26 +15,12 @@ export function RecipeList() {
   // 1. Query the LOCAL database safely
   const recipes = useLiveQuery(async () => {
     try {
-      const allRecipes = await db.recipes.toArray();
-      
-      const hiddenRecords = user ? await db.user_hidden_recipes.where({ user_id: user.id }).toArray() : [];
-      const hiddenIds = new Set(hiddenRecords.map(h => h.recipe_id));
-      
-      return allRecipes.filter(recipe => {
-        // Safety check: If the record is completely broken, skip it
-        if (!recipe || !recipe.id) return false;
+      // Trash / hidden / ownership rules live in getVisibleRecipes so every
+      // screen applies them identically; only the search filters are local.
+      const visibleRecipes = await getVisibleRecipes(user?.id);
 
-        // RULE 1: Remove Trashed Recipes
-        if (recipe.deleted_at) return false;
-        
-        // RULE 2: Remove Hidden Recipes
-        if (hiddenIds.has(recipe.id)) return false;
-        
-        // RULE 3: Forgiving Global Check 
-        const isGlobal = recipe.visibility === 'global' || !recipe.visibility;
-        if (!isGlobal && recipe.owner_id !== user?.id) return false;
-
-        // RULE 4: Safe User Filters (using fallbacks so it never crashes on undefined)
+      return visibleRecipes.filter(recipe => {
+        // Safe User Filters (using fallbacks so it never crashes on undefined)
         const safeTitle = recipe.title || '';
         const matchesSearch = safeTitle.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesDish = filterDishType ? recipe.dish_type === filterDishType : true;
