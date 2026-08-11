@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import {
   ChefHat, Search, Compass, Heart,
   LayoutDashboard, PlusCircle, LogIn, LogOut,
-  Menu, X, ChevronLeft, ChevronRight, ShieldCheck
+  Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays
 } from 'lucide-react';
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -21,6 +21,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { name: 'Search Vault', path: '/recipes', icon: Search },
     { name: 'Discovery', path: '/discovery', icon: Compass },
+    { name: 'Meal Planner', path: '/planner', icon: CalendarDays },
     { name: 'Favorites', path: '/favorites', icon: Heart },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Add Recipe', path: '/add', icon: PlusCircle },

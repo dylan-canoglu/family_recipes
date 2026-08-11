@@ -70,6 +70,25 @@ export async function syncAllApprovalRequests() {
   }
 }
 
+// The meal plan is shared household data -- everyone sees and edits the same
+// calendar -- so this pulls the whole table rather than filtering by user.
+export async function syncMealPlan() {
+  try {
+    const { data, error } = await supabase.from('meal_plan').select('*');
+    if (error) throw error;
+    if (!data) return;
+
+    // Replace wholesale so entries another family member deleted don't linger
+    // in this device's local copy.
+    await db.transaction('rw', db.meal_plan, async () => {
+      await db.meal_plan.clear();
+      await db.meal_plan.bulkPut(data);
+    });
+  } catch (err) {
+    console.error('Meal plan sync failed:', err);
+  }
+}
+
 // Family-wide cooking aggregates for the Discovery tab. Raw cooking_logs rows
 // stay private under RLS; this RPC returns counts and averages only. Requires
 // supabase-cook-stats.sql to have been applied -- if it hasn't, this logs and

@@ -9,6 +9,7 @@ import { AddRecipe } from './pages/AddRecipe';
 import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
 import { Discovery } from './pages/Discovery';
+import { MealPlanner } from './pages/MealPlanner';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/recipes/:id" element={<Layout><RecipeDetail /></Layout>} />
           
           <Route path="/discovery" element={<Layout><Discovery /></Layout>} />
+          <Route path="/planner" element={<Layout><MealPlanner /></Layout>} />
           <Route path="/favorites" element={<Layout><Favorites /></Layout>} />
           <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
           <Route path="/add" element={<Layout><AddRecipe /></Layout>} />

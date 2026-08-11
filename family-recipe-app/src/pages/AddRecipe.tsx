@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { HOUSEHOLD_ID } from '../lib/constants';
 import { PlusCircle, Clock, ChefHat, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -41,7 +42,7 @@ export function AddRecipe() {
     // We omit it for Supabase, but calculate it locally for Dexie.
     const baseRecipe = {
         id: newId,
-        household_id: 'daf749d9-2b65-44fc-95ff-cc2824412755',
+        household_id: HOUSEHOLD_ID,
         title,
         cuisine: cuisine || null,
         dish_type: dishType as any,
