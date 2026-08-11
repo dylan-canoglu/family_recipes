@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { PlusCircle, Clock, ChefHat, Save, ImagePlus, X } from 'lucide-react';
+import { PlusCircle, Clock, ChefHat, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 export function AddRecipe() {
@@ -23,21 +23,6 @@ export function AddRecipe() {
   const [ingredients, setIngredients] = useState('');
   const [instructions, setInstructions] = useState('');
   const [notes, setNotes] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
-
-  const clearImage = () => {
-    setImageFile(null);
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImagePreview(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,45 +36,32 @@ export function AddRecipe() {
     // Parse ingredients from a simple multiline text box into an array
     const parsedIngredients = ingredients.split('\n').map(i => i.trim()).filter(i => i !== '');
 
+    // Note: Your Supabase table calculates total_time_min automatically via GENERATED ALWAYS.
+    // If we send total_time_min in the Supabase insert, it will crash.
+    // We omit it for Supabase, but calculate it locally for Dexie.
+    const baseRecipe = {
+        id: newId,
+        household_id: 'daf749d9-2b65-44fc-95ff-cc2824412755',
+        title,
+        cuisine: cuisine || null,
+        dish_type: dishType as any,
+        complexity: complexity as any,
+        prep_time_min: Number(prepTime),
+        cook_time_min: Number(cookTime),
+        base_servings: Number(servings),
+        ingredients: parsedIngredients,
+        instructions,
+        notes,
+        image_path: '',
+        source_type: 'manual' as const,
+        source_url: '',
+        // --- THE NEW FIELDS ---
+        owner_id: user.id,
+        visibility: 'personal' as const,
+        deleted_at: null,
+      };
+
     try {
-      // 1b. Upload the image first (if provided) so we have its URL for image_path.
-      let imagePath = '';
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const filePath = `personal/${newId}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('recipe-images')
-          .upload(filePath, imageFile);
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('recipe-images').getPublicUrl(filePath);
-        imagePath = urlData.publicUrl;
-      }
-
-      // Note: Your Supabase table calculates total_time_min automatically via GENERATED ALWAYS.
-      // If we send total_time_min in the Supabase insert, it will crash.
-      // We omit it for Supabase, but calculate it locally for Dexie.
-      const baseRecipe = {
-          id: newId,
-          household_id: 'daf749d9-2b65-44fc-95ff-cc2824412755',
-          title,
-          cuisine: cuisine || null,
-          dish_type: dishType as any,
-          complexity: complexity as any,
-          prep_time_min: Number(prepTime),
-          cook_time_min: Number(cookTime),
-          base_servings: Number(servings),
-          ingredients: parsedIngredients,
-          instructions,
-          notes,
-          image_path: imagePath,
-          source_type: 'manual' as const,
-          source_url: '',
-          // --- THE NEW FIELDS ---
-          owner_id: user.id,
-          visibility: 'personal' as const,
-          deleted_at: null,
-        };
-
       // 2. Push to Supabase (Cloud)
       const { error: supabaseError } = await supabase.from('recipes').insert([baseRecipe]);
 
@@ -136,33 +108,6 @@ export function AddRecipe() {
               {error}
             </div>
           )}
-
-          {/* Photo Group */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
-              <ImagePlus className="w-5 h-5 text-orange-500" /> Photo
-            </h3>
-
-            {imagePreview ? (
-              <div className="relative w-full h-56 rounded-xl overflow-hidden border border-slate-200">
-                <img src={imagePreview} alt="Recipe preview" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={clearImage}
-                  title="Remove photo"
-                  className="absolute top-3 right-3 bg-black/60 text-white p-2 rounded-full hover:bg-black/80 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition-colors">
-                <ImagePlus className="w-8 h-8 text-slate-300 mb-2" />
-                <span className="text-sm text-slate-500 font-medium">Click to upload a photo</span>
-                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-              </label>
-            )}
-          </div>
 
           {/* Basic Info Group */}
           <div className="space-y-4">

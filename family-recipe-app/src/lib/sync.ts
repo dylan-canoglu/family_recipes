@@ -64,3 +64,15 @@ export async function syncAllApprovalRequests() {
     console.error('Approval request sync failed:', err);
   }
 }
+
+// Food photos are visible to every family member, not just the uploader,
+// so this pulls per-recipe on demand rather than syncing the whole table.
+export async function syncRecipePhotos(recipeId: string) {
+  try {
+    const { data, error } = await supabase.from('recipe_photos').select('*').eq('recipe_id', recipeId);
+    if (error) throw error;
+    if (data) await db.recipe_photos.bulkPut(data);
+  } catch (err) {
+    console.error('Recipe photos sync failed:', err);
+  }
+}

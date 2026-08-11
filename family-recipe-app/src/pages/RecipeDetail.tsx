@@ -4,12 +4,15 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { ArrowLeft, Clock, ChefHat, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages } from 'lucide-react';
+import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
 import { EditRecipeDialog, type EditRecipeFields } from '../components/EditRecipeDialog';
 import { formatIngredientList, formatInstructionSteps } from '../lib/format';
+import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
+import { FlipCard } from '../components/FlipCard';
+import { syncRecipePhotos } from '../lib/sync';
 
 interface DialogState {
   title: string;
@@ -34,6 +37,8 @@ export function RecipeDetail() {
 
   const [noteDraft, setNoteDraft] = useState('');
   const [showOriginal, setShowOriginal] = useState(false);
+  const [showScan, setShowScan] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -58,14 +63,25 @@ export function RecipeDetail() {
     [user, id]
   );
 
+  const photos = useLiveQuery(
+    () => id ? db.recipe_photos.where({ recipe_id: id }).toArray() : [],
+    [id]
+  ) ?? [];
+
+  // Photos are visible to everyone, so pull them fresh for whichever recipe is open.
+  useEffect(() => {
+    if (id) syncRecipePhotos(id);
+  }, [id]);
+
   // Populate the notes textarea once the existing note (if any) has loaded.
   useEffect(() => {
     if (myNote) setNoteDraft(myNote.note_text);
   }, [myNote]);
 
-  // Default back to English whenever a different recipe is opened.
+  // Default back to English (and the un-flipped card face) whenever a different recipe is opened.
   useEffect(() => {
     setShowOriginal(false);
+    setShowScan(false);
   }, [id]);
 
   // 2. ACTION HANDLERS: The logic executed when a user clicks a button.
@@ -79,6 +95,43 @@ export function RecipeDetail() {
       await db.favorites.put(newFav);
       await supabase.from('favorites').insert(newFav);
     }
+  };
+
+  const handleAddPhoto = async (file: File) => {
+    if (!user || !id) return showToast('Please sign in to add photos!');
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const storagePath = `cooked/${id}/${uuidv4()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('recipe-images').upload(storagePath, file);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('recipe-images').getPublicUrl(storagePath);
+
+      const photo = { id: uuidv4(), recipe_id: id, user_id: user.id, image_path: urlData.publicUrl, created_at: new Date().toISOString() };
+      await db.recipe_photos.put(photo);
+      await supabase.from('recipe_photos').insert(photo);
+      showToast('Photo added!');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to upload photo.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = (photo: GalleryPhoto) => {
+    setDialog({
+      title: 'Remove Photo',
+      message: 'Remove this photo from the collection?',
+      confirmLabel: 'Remove',
+      danger: true,
+      onConfirm: async () => {
+        await db.recipe_photos.delete(photo.id);
+        await supabase.from('recipe_photos').delete().eq('id', photo.id);
+        const storagePath = photo.image_path.split('/recipe-images/')[1];
+        if (storagePath) await supabase.storage.from('recipe-images').remove([storagePath]);
+        setDialog(null);
+      },
+    });
   };
 
   const handleHide = () => {
@@ -261,15 +314,17 @@ export function RecipeDetail() {
         </div>
       )}
 
-      <div className="h-64 bg-slate-800 w-full flex items-center justify-center relative overflow-hidden">
+      <div className="relative overflow-hidden">
         <Link to="/recipes" className="absolute top-6 left-6 text-white hover:text-orange-400 flex items-center gap-2 bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm transition-colors z-10">
           <ArrowLeft className="w-5 h-5" /> Back
         </Link>
-        {recipe.image_path ? (
-          <img src={recipe.image_path} alt={recipe.title} className="w-full h-full object-cover" />
-        ) : (
-          <ChefHat className="w-20 h-20 text-slate-600 opacity-50" />
-        )}
+        <PhotoGallery
+          photos={photos}
+          canDelete={(photo) => photo.user_id === user?.id}
+          onAdd={handleAddPhoto}
+          onDelete={handleDeletePhoto}
+          uploading={uploadingPhoto}
+        />
       </div>
 
       <div className="max-w-4xl mx-auto px-6 -mt-12 relative z-10">
@@ -333,43 +388,64 @@ export function RecipeDetail() {
               <Clock className="w-5 h-5 text-orange-600" />
               <span>Total: {recipe.total_time_min}m</span>
             </div>
-            {hasTranslation && (
-              <button
-                onClick={() => setShowOriginal(!showOriginal)}
-                className="flex items-center gap-2 text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors"
-              >
-                <Languages className="w-4 h-4" />
-                {showOriginal ? 'Show English' : 'Show Original'}
-              </button>
-            )}
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-12">
-            <div className="md:col-span-1">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Ingredients</h2>
-              <ul className="space-y-3 text-slate-700">
-                {ingredientLines.length > 0 ? (
-                  ingredientLines.map((ing, i) => (
-                    <li key={i} className="flex items-start gap-2"><span className="text-orange-500 mt-1">•</span><span>{ing}</span></li>
-                  ))
-                ) : (
-                  <p className="text-slate-400">No ingredients listed.</p>
-                )}
-              </ul>
-            </div>
-            <div className="md:col-span-2">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Instructions</h2>
-              {instructionSteps.length > 0 ? (
-                <ol className="space-y-4 text-slate-700 list-decimal list-outside pl-5 marker:text-orange-500 marker:font-semibold">
-                  {instructionSteps.map((step, i) => (
-                    <li key={i} className="pl-1">{step}</li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="text-slate-400">No instructions provided for this recipe.</p>
+            <div className="flex items-center gap-2">
+              {hasTranslation && (
+                <button
+                  onClick={() => setShowOriginal(!showOriginal)}
+                  className="flex items-center gap-2 text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  <Languages className="w-4 h-4" />
+                  {showOriginal ? 'Show English' : 'Show Original'}
+                </button>
+              )}
+              {recipe.image_path && (
+                <button
+                  onClick={() => setShowScan(!showScan)}
+                  className="flex items-center gap-2 text-sm font-semibold text-slate-600 bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  <ScanEye className="w-4 h-4" />
+                  {showScan ? 'Flip Back' : 'Verify Original'}
+                </button>
               )}
             </div>
           </div>
+
+          <FlipCard
+            flipped={showScan}
+            front={
+              <div className="grid md:grid-cols-3 gap-12">
+                <div className="md:col-span-1">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-6">Ingredients</h2>
+                  <ul className="space-y-3 text-slate-700">
+                    {ingredientLines.length > 0 ? (
+                      ingredientLines.map((ing, i) => (
+                        <li key={i} className="flex items-start gap-2"><span className="text-orange-500 mt-1">•</span><span>{ing}</span></li>
+                      ))
+                    ) : (
+                      <p className="text-slate-400">No ingredients listed.</p>
+                    )}
+                  </ul>
+                </div>
+                <div className="md:col-span-2">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-6">Instructions</h2>
+                  {instructionSteps.length > 0 ? (
+                    <ol className="space-y-4 text-slate-700 list-decimal list-outside pl-5 marker:text-orange-500 marker:font-semibold">
+                      {instructionSteps.map((step, i) => (
+                        <li key={i} className="pl-1">{step}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-slate-400">No instructions provided for this recipe.</p>
+                  )}
+                </div>
+              </div>
+            }
+            back={
+              recipe.image_path ? (
+                <img src={recipe.image_path} alt="Original scanned recipe" className="w-full h-full object-contain" />
+              ) : null
+            }
+          />
 
           {/* My Personal Notes: private per-user, separate from the shared recipe content */}
           {user && (

@@ -42,6 +42,17 @@ export interface ApprovalRequest {
   resolved_at?: Date | string | null;
 }
 
+// User-uploaded photos of the finished dish -- distinct from
+// Recipe.image_path, which (for legacy recipes) is the scanned
+// original recipe card, shown only via the "verify original" flip.
+export interface RecipePhoto {
+  id: string;
+  recipe_id: string;
+  user_id: string;
+  image_path: string;
+  created_at: Date | string;
+}
+
 export class RecipeVaultDB extends Dexie {
   recipes!: Table<Recipe>;
   cooking_logs!: Table<CookingLog>;
@@ -50,10 +61,11 @@ export class RecipeVaultDB extends Dexie {
   user_recipe_notes!: Table<UserRecipeNote>;
   user_hidden_recipes!: Table<UserHiddenRecipe>;
   approval_requests!: Table<ApprovalRequest>;
+  recipe_photos!: Table<RecipePhoto>;
 
   constructor() {
     super('RecipeVaultDB');
-    
+
     // We only need to define the LATEST schema in Dexie versioning when overriding completely
     this.version(3).stores({
       // Added owner_id and visibility to indexes for fast filtering
@@ -64,6 +76,10 @@ export class RecipeVaultDB extends Dexie {
       user_recipe_notes: 'id, user_id, recipe_id',
       user_hidden_recipes: 'id, user_id, recipe_id',
       approval_requests: 'id, recipe_id, requested_by, status'
+    });
+
+    this.version(4).stores({
+      recipe_photos: 'id, recipe_id, user_id, created_at'
     });
   }
 }
