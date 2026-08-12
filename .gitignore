@@ -1,10 +1,19 @@
 node_modules/
-__pycache__/
-.env
-node_modules/
 family-recipe-app/node_modules/
 __pycache__/
-.env
 venv/
 .venv/
 env/
+
+# Supabase URL + keys. The Netlify build reads these from the site's
+# environment variables instead; nothing secret belongs in the repo.
+.env
+
+# The original notebook scans (~55MB of photos). The app serves recipe
+# images from Supabase storage, so the build never needs these, and
+# committing them would bloat every future clone.
+recipe pictures/
+
+# Machine-local Claude Code permission allowlist -- absolute paths from one
+# developer's machine, useless (and noisy) to anyone else.
+.claude/settings.local.json

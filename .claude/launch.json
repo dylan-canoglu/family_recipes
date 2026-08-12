@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "recipe-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "family-recipe-app"],
+      "port": 5173
+    },
+    {
+      "name": "recipe-app-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "--prefix", "family-recipe-app"],
+      "port": 4173
+    }
+  ]
+}
