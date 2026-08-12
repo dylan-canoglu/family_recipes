@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ZoomIn, ZoomOut, RotateCcw, ScanText, Save, Loader2, AlertTriangle } from 'lucide-react';
-import { extractTextFromImage, parseRecipeText } from '../lib/ocr';
+import { X, ZoomIn, ZoomOut, RotateCcw, ScanText, Save, Loader2, AlertTriangle, Languages } from 'lucide-react';
+import { extractTextFromImage, parseRecipeText, OCR_LANGUAGES, type OcrLanguage } from '../lib/ocr';
 import { type ScanDraftFields, EMPTY_SCAN_DRAFT } from '../lib/recipeDraft';
 
 // The OCR review drawer: everything a scanned recipe needs before it can be
@@ -40,12 +40,20 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [phase, setPhase] = useState<OcrPhase>('running');
   const [progress, setProgress] = useState(0);
+  // One language at a time -- loading several at once measurably corrupts
+  // the others (see OcrOptions). French is the vault's most common.
+  const [language, setLanguage] = useState<OcrLanguage>('fra');
+  // How much text came back, so the drawer can admit when a scan defeated it
+  // rather than presenting an empty form as a successful read.
+  const [yieldChars, setYieldChars] = useState(0);
 
   // Zoom/pan for reading small handwriting against the form.
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const drag = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number } | null>(null);
 
+  // Reset only when a NEW image arrives. Deliberately not keyed on language,
+  // so re-reading a page does not throw away corrections already typed in.
   useEffect(() => {
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -53,14 +61,25 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
     setFields(EMPTY_SCAN_DRAFT);
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  // Keyed on language too: a page first read as French can be re-read as
+  // Turkish without re-uploading it.
+  useEffect(() => {
+    if (!file) return;
     setPhase('running');
     setProgress(0);
 
     let cancelled = false;
-    extractTextFromImage(file, (pct) => { if (!cancelled) setProgress(pct); })
-      .then((text) => {
+    extractTextFromImage(file, {
+      language,
+      onProgress: (pct) => { if (!cancelled) setProgress(pct); },
+    })
+      .then(({ text }) => {
         if (cancelled) return;
         const draft = parseRecipeText(text);
+        setYieldChars(text.trim().length);
         setFields((f) => ({
           ...f,
           title: draft.title || f.title,
@@ -77,11 +96,8 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
         if (!cancelled) setPhase('failed');
       });
 
-    return () => {
-      cancelled = true;
-      URL.revokeObjectURL(url);
-    };
-  }, [file]);
+    return () => { cancelled = true; };
+  }, [file, language]);
 
   if (!file) return null;
 
@@ -171,9 +187,38 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
                 Couldn't read the image automatically (this needs a network connection the first time). Type the recipe in below — the scan will still be attached.
               </p>
             )}
-            {phase === 'done' && (
+            {/* Re-reading in another language is the single most effective
+                fix when a page comes back as nonsense, so it sits above the
+                fields rather than hidden in a menu. */}
+            <div className="flex items-center gap-2">
+              <Languages className="w-4 h-4 text-slate-400 shrink-0" />
+              <label className="text-sm font-semibold text-slate-700 shrink-0">Written in</label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as OcrLanguage)}
+                disabled={phase === 'running'}
+                className={`${inputClass} flex-1 min-h-[44px] disabled:opacity-60`}
+              >
+                {OCR_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {phase === 'done' && yieldChars < 40 && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>
+                  Almost nothing readable came off this page. Cursive handwriting
+                  usually defeats it entirely — try a straight-on, well-lit photo, or
+                  just type the recipe in below. The picture is still attached either way.
+                </span>
+              </p>
+            )}
+            {phase === 'done' && yieldChars >= 40 && (
               <p className="text-sm text-slate-500 bg-blue-50 border border-blue-100 rounded-lg p-3">
-                Auto-read from the scan. Check it against the picture — handwriting and accents often come through wrong.
+                Auto-read from the scan. Check every line against the picture — handwriting
+                and accents come through wrong often, and amounts are the easiest thing to miss.
               </p>
             )}
 
