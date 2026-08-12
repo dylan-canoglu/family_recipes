@@ -7,6 +7,13 @@ export interface CookLogFields {
   notes: string;
 }
 
+// Local date parts rather than toISOString(), which is UTC and would let
+// someone pick "tomorrow" late in the evening.
+const todayLocalISO = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 interface LogCookDialogProps {
   open: boolean;
   fields: CookLogFields;
@@ -36,7 +43,7 @@ export function LogCookDialog({ open, fields, onChange, onSave, onCancel, saving
         <input
           type="date"
           value={fields.cooked_at}
-          max={new Date().toISOString().slice(0, 10)}
+          max={todayLocalISO()}
           onChange={(e) => onChange({ ...fields, cooked_at: e.target.value })}
           className="w-full px-4 py-2 border border-slate-200 rounded-lg mb-5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-colors"
         />
@@ -45,8 +52,16 @@ export function LogCookDialog({ open, fields, onChange, onSave, onCancel, saving
         <div className="flex items-center gap-3 mb-5">
           <StarRating size="lg" value={fields.rating} onChange={(rating) => onChange({ ...fields, rating })} />
           <span className="text-sm text-slate-500">
-            {fields.rating > 0 ? `${fields.rating} / 5` : 'No rating yet'}
+            {fields.rating > 0 ? `${fields.rating} / 5` : 'Optional'}
           </span>
+          {fields.rating > 0 && (
+            <button
+              onClick={() => onChange({ ...fields, rating: 0 })}
+              className="text-xs text-slate-400 hover:text-slate-600 underline"
+            >
+              clear
+            </button>
+          )}
         </div>
 
         <label className="block text-sm font-semibold text-slate-700 mb-1">
@@ -67,11 +82,15 @@ export function LogCookDialog({ open, fields, onChange, onSave, onCancel, saving
           >
             Cancel
           </button>
+          {/* The rating is optional: recording that a dish got made is the
+              valuable part, and demanding a star first is the kind of friction
+              that stops people logging at all. Rating 0 is handled everywhere
+              downstream -- Discovery and the stats RPC both aggregate only
+              rows with rating > 0. */}
           <button
             onClick={onSave}
-            disabled={saving || fields.rating === 0}
+            disabled={saving}
             className="px-4 py-2 rounded-lg text-white font-semibold bg-orange-600 hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:hover:bg-orange-600"
-            title={fields.rating === 0 ? 'Pick a star rating first' : undefined}
           >
             {saving ? 'Saving...' : 'Save Cook'}
           </button>

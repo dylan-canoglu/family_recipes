@@ -26,7 +26,12 @@ interface DialogState {
 
 const EMPTY_EDIT_FIELDS: EditRecipeFields = { title: '', ingredients: '', instructions: '', notes: '' };
 
-const todayISODate = () => new Date().toISOString().slice(0, 10);
+// Built from local date parts, not toISOString(), which converts to UTC first
+// and would log a late-evening cook against tomorrow's date west of Greenwich.
+const todayISODate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 const emptyCookLogFields = (): CookLogFields => ({ cooked_at: todayISODate(), rating: 0, notes: '' });
 
 export function RecipeDetail() {
@@ -156,7 +161,16 @@ export function RecipeDetail() {
     setLogDialogOpen(true);
   };
 
-  const handleSaveCookLog = async () => {
+  // One tap, no dialog: today's date, no rating, no note. The dialog stays for
+  // when someone actually wants to record how it went.
+  const handleQuickLog = async () => {
+    if (!user || !id) return;
+    await saveCookLog({ cooked_at: todayISODate(), rating: 0, notes: '' });
+  };
+
+  const handleSaveCookLog = () => saveCookLog(logFields);
+
+  const saveCookLog = async (fields: CookLogFields) => {
     if (!user || !id) return;
     setSavingLog(true);
     try {
@@ -165,9 +179,9 @@ export function RecipeDetail() {
         recipe_id: id,
         user_id: user.id,
         // Stored as a date-only string; the dialog never collects a time.
-        cooked_at: logFields.cooked_at,
-        rating: logFields.rating,
-        notes: logFields.notes,
+        cooked_at: fields.cooked_at,
+        rating: fields.rating,
+        notes: fields.notes,
       };
       // Local first: logging a cook has to work in a kitchen with no signal.
       await db.cooking_logs.put(log);
@@ -532,12 +546,21 @@ export function RecipeDetail() {
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <CookingPot className="w-5 h-5 text-orange-500" /> My Cooking History
                 </h2>
-                <button
-                  onClick={openLogDialog}
-                  className="flex items-center gap-2 text-sm bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
-                >
-                  <CookingPot className="w-4 h-4" /> Log a Cook
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleQuickLog}
+                    disabled={savingLog}
+                    className="flex items-center gap-2 text-sm bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50"
+                  >
+                    <CookingPot className="w-4 h-4" /> I cooked this
+                  </button>
+                  <button
+                    onClick={openLogDialog}
+                    className="text-sm bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg font-semibold hover:bg-slate-100 transition-colors"
+                  >
+                    Add details
+                  </button>
+                </div>
               </div>
               <p className="text-sm text-slate-500 mb-4">
                 {cookLogs.length === 0
