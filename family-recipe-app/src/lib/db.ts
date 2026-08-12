@@ -80,6 +80,26 @@ export interface RecipeStat {
   last_cooked_at: string | null;
 }
 
+/**
+ * Recipe content in one language. Generated once by the batch script and
+ * synced down, never translated in the browser -- see
+ * supabase-recipe-translations.sql for why.
+ *
+ * Every field is optional: a partial translation should still be usable, and
+ * the render path falls back field by field to the original recipe.
+ */
+export interface RecipeTranslation {
+  recipe_id: string;
+  lang: 'en' | 'fr' | 'tr';
+  title?: string | null;
+  /** Display lines, same shape as ingredients_en. */
+  ingredients?: string[] | null;
+  instructions?: string | null;
+  notes?: string | null;
+  source?: 'machine' | 'human';
+  updated_at?: string;
+}
+
 export class RecipeVaultDB extends Dexie {
   recipes!: Table<Recipe>;
   cooking_logs!: Table<CookingLog>;
@@ -90,6 +110,7 @@ export class RecipeVaultDB extends Dexie {
   approval_requests!: Table<ApprovalRequest>;
   recipe_photos!: Table<RecipePhoto>;
   recipe_stats!: Table<RecipeStat>;
+  recipe_translations!: Table<RecipeTranslation>;
 
   constructor() {
     super('RecipeVaultDB');
@@ -121,6 +142,12 @@ export class RecipeVaultDB extends Dexie {
     // meal_prep_friendly are plain fields filtered in memory.
     this.version(6).stores({
       recipes: 'id, household_id, title, cuisine, dish_type, complexity, visibility, owner_id, *tags'
+    });
+
+    // v7: translated recipe content. The compound [recipe_id+lang] key is what
+    // the detail page looks up -- one row per recipe per language.
+    this.version(7).stores({
+      recipe_translations: '[recipe_id+lang], recipe_id, lang'
     });
   }
 }

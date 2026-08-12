@@ -131,3 +131,23 @@ export async function syncRecipePhotos(recipeId: string) {
     console.error('Recipe photos sync failed:', err);
   }
 }
+// Translated recipe text, pulled one language at a time -- there is no point
+// carrying Turkish rows around on a phone set to French. Missing table (the
+// migration has not been run yet) is not an error worth shouting about: the
+// app falls back to the original wording on its own.
+export async function syncRecipeTranslations(lang: string) {
+  try {
+    const { data, error } = await supabase
+      .from('recipe_translations')
+      .select('*')
+      .eq('lang', lang);
+    if (error) {
+      // 42P01 = undefined_table. Anything else is worth seeing.
+      if (error.code !== '42P01' && !/does not exist/i.test(error.message)) throw error;
+      return;
+    }
+    if (data && data.length > 0) await db.recipe_translations.bulkPut(data);
+  } catch (err) {
+    console.error('Recipe translations sync failed:', err);
+  }
+}

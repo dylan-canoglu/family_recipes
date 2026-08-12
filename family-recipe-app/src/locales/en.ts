@@ -93,6 +93,7 @@ export const en = {
   'recipe.portionSingle': 'Single',
   'recipe.portionDouble': 'Double',
   'recipe.portionBatch': 'College Batch',
+  'recipe.showTranslated': 'Show translation',
   'recipe.showOriginal': 'Show original',
   'recipe.showEnglish': 'Show English',
   'recipe.logCook': 'Log a cook',

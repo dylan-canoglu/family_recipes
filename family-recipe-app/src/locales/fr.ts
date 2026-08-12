@@ -86,6 +86,7 @@ export const fr: Partial<Record<TranslationKey, string>> = {
   'recipe.portionSingle': 'Simple',
   'recipe.portionDouble': 'Double',
   'recipe.portionBatch': 'Grande quantité',
+  'recipe.showTranslated': 'Voir la traduction',
   'recipe.showOriginal': 'Version originale',
   'recipe.showEnglish': 'Version anglaise',
   'recipe.logCook': 'J’ai cuisiné ça',

@@ -86,6 +86,7 @@ export const tr: Partial<Record<TranslationKey, string>> = {
   'recipe.portionSingle': 'Tek',
   'recipe.portionDouble': 'İki katı',
   'recipe.portionBatch': 'Büyük tencere',
+  'recipe.showTranslated': 'Çevirisini göster',
   'recipe.showOriginal': 'Aslını göster',
   'recipe.showEnglish': 'İngilizcesini göster',
   'recipe.logCook': 'Pişirdim',

@@ -7,7 +7,9 @@ import { getVisibleRecipes, updateRecipeInCloud } from '../lib/recipes';
 import { isCookable } from '../lib/suggest';
 import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
-import { useT, type TranslationKey } from '../lib/i18n';
+import { useI18n, type TranslationKey } from '../lib/i18n';
+import { translatedTitle } from '../lib/translation';
+import { syncRecipeTranslations } from '../lib/sync';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ChefHat, Clock, Search, ClipboardCheck, ShoppingCart,
@@ -78,7 +80,7 @@ interface DialogState {
 
 export function RecipeList() {
   const { user, isAdmin, isGuest } = useAuth();
-  const t = useT();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   // Home's lane headers deep-link here pre-filtered, e.g. /recipes?dish=Soup.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -150,6 +152,13 @@ export function RecipeList() {
   // Display thumbnails come from recipe_photos (photos of the finished dish),
   // never from image_path -- that's the archival notebook scan.
   const photos = useLiveQuery(() => db.recipe_photos.toArray(), []);
+  // Titles follow the interface language where a translation exists.
+  const translations = useLiveQuery(
+    async () => new Map(
+      (await db.recipe_translations.where('lang').equals(lang).toArray()).map((r) => [r.recipe_id, r])
+    ),
+    [lang]
+  );
   const thumbByRecipe = useMemo(() => {
     const map = new Map<string, string>();
     for (const photo of photos ?? []) {
@@ -159,8 +168,11 @@ export function RecipeList() {
   }, [photos]);
 
   useEffect(() => {
-    if (user || isGuest) syncRecipes();
-  }, [user, isGuest]);
+    if (user || isGuest) {
+      syncRecipes();
+      syncRecipeTranslations(lang);
+    }
+  }, [user, isGuest, lang]);
 
   // --- Review sweep actions (admin only) ---
 
@@ -416,7 +428,7 @@ export function RecipeList() {
                     </div>
 
                     <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2 group-hover:text-orange-600 transition-colors">
-                      {recipe.title || 'Untitled Recipe'}
+                      {translatedTitle(recipe, translations) || 'Untitled Recipe'}
                     </h3>
 
                     <div className="flex items-center flex-wrap text-sm text-slate-500 gap-x-4 gap-y-1 mt-3">

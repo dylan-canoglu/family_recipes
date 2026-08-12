@@ -4,7 +4,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { useT } from '../lib/i18n';
+import { useI18n } from '../lib/i18n';
+import { resolveRecipeText } from '../lib/translation';
+import { syncRecipeTranslations } from '../lib/sync';
 import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye, CookingPot, X, Flame, Users } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -47,7 +49,7 @@ const emptyCookLogFields = (): CookLogFields => ({ cooked_at: todayISODate(), ra
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const t = useT();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
 
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -75,6 +77,13 @@ export function RecipeDetail() {
 
   // 1. DATA FETCHING: Load the recipe and check if it is favorited or hidden by the current user.
   const recipe = useLiveQuery(() => db.recipes.get(id as string), [id]);
+
+  // Translated text for the interface language. Undefined simply means the
+  // recipe has not been translated yet, which the resolver handles.
+  const translation = useLiveQuery(
+    () => (id ? db.recipe_translations.get({ recipe_id: id, lang }) : undefined),
+    [id, lang]
+  );
 
   const favorite = useLiveQuery(
     () => (user && id) ? db.favorites.where({ recipe_id: id, user_id: user.id }).first() : undefined,
@@ -107,6 +116,12 @@ export function RecipeDetail() {
   useEffect(() => {
     if (id) syncRecipePhotos(id);
   }, [id]);
+
+  // Pull the translations for whichever language the interface is in. Cheap
+  // and idempotent, and it means switching language mid-recipe fills in.
+  useEffect(() => {
+    syncRecipeTranslations(lang);
+  }, [lang]);
 
   // Populate the notes textarea once the existing note (if any) has loaded.
   useEffect(() => {
@@ -394,12 +409,15 @@ export function RecipeDetail() {
   // undefined would match `undefined === user?.id` for a signed-out visitor.
   const isOwner = !!user && recipe.owner_id === user.id;
   const isPersonal = recipe.visibility === 'personal' || !recipe.visibility;
-  const hasTranslation = !!(recipe.instructions_en || (recipe.ingredients_en && recipe.ingredients_en.length > 0));
-  const useOriginal = showOriginal || !hasTranslation;
+  // Which words to show: the translation for the interface language when one
+  // exists, the original otherwise, resolved field by field so a partial
+  // translation still helps. See lib/translation.ts.
+  const text = resolveRecipeText(recipe, translation, lang, showOriginal);
+  const hasTranslation = text.hasTranslation;
   // All ingredient rendering flows through formatIngredientList, which also
   // applies the portion multiplier to every parseable quantity.
-  const ingredientLines = formatIngredientList(useOriginal ? recipe.ingredients : recipe.ingredients_en, multiplier);
-  const instructionSteps = formatInstructionSteps(useOriginal ? recipe.instructions : recipe.instructions_en);
+  const ingredientLines = formatIngredientList(text.ingredients, multiplier);
+  const instructionSteps = formatInstructionSteps(text.instructions);
 
   const ratedLogs = cookLogs.filter((log) => log.rating > 0);
   const myAverageRating = ratedLogs.length > 0
@@ -491,7 +509,7 @@ export function RecipeDetail() {
             </div>
           </div>
 
-          <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6">{recipe.title}</h1>
+          <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6">{text.title}</h1>
 
           <div className="flex flex-wrap items-center justify-between gap-6 mb-10 pb-10 border-b border-slate-100">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-slate-600">
@@ -525,7 +543,7 @@ export function RecipeDetail() {
                   className="flex items-center gap-2 text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors"
                 >
                   <Languages className="w-4 h-4" />
-                  {showOriginal ? 'Show English' : 'Show Original'}
+                  {showOriginal ? t('recipe.showTranslated') : t('recipe.showOriginal')}
                 </button>
               )}
               {recipe.image_path && (
