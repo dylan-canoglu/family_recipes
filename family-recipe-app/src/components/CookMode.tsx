@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Check, Timer, Pause, Play, RotateCcw, ListChecks } from 'lucide-react';
+import { X, Check, Timer, Pause, Play, RotateCcw, ListChecks, ChevronDown } from 'lucide-react';
 
 // Hands-free cooking HUD: high-contrast, oversized touch targets, step
 // checkboxes and per-step timers. Fullscreen and self-contained so a phone
@@ -19,7 +19,19 @@ function detectStepMinutes(step: string): number | null {
   const hours = step.match(/(\d+(?:[.,]\d+)?)\s*(?:hours?|hrs?|h\b|heures?|saat)/i);
   const mins = step.match(/(\d+)\s*(?:minutes?|mins?|min\b|dakika|dk)/i);
   if (!hours && !mins) return null;
-  const total = Math.round((hours ? Number(hours[1].replace(',', '.')) * 60 : 0) + (mins ? Number(mins[1]) : 0));
+
+  const hourMinutes = hours ? Number(hours[1].replace(',', '.')) * 60 : 0;
+  const minMinutes = mins ? Number(mins[1]) : 0;
+
+  // Only add the two together when the hours are stated FIRST, as in
+  // "1 hr 30 min". Blindly summing turned "chill for 30 minutes to 1 hour"
+  // into a 90 minute timer -- it is a range, not a total. When the minutes
+  // come first the step is offering a span, so take the lower bound: it is
+  // always possible to give it longer, but not to un-chill a pastry.
+  const isSum = hours != null && mins != null && hours.index! < mins.index!;
+  const total = Math.round(
+    isSum ? hourMinutes + minMinutes : (mins != null ? minMinutes : hourMinutes),
+  );
   return total > 0 && total <= 24 * 60 ? total : null;
 }
 
@@ -40,6 +52,53 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
   const [showIngredients, setShowIngredients] = useState(false);
   const [timer, setTimer] = useState<RunningTimer | null>(null);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const audioRef = useRef<AudioContext | null>(null);
+  const stepRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  // The alarm has to be AUDIBLE, not haptic: navigator.vibrate does nothing
+  // in iOS Safari, and this family cooks from iPhones. Web Audio also refuses
+  // to make noise from a context created outside a user gesture there, so the
+  // context is built when the cook taps "start timer" -- the one moment a
+  // gesture is guaranteed -- and merely resumed later.
+  const armAlarm = () => {
+    try {
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return;
+      audioRef.current ??= new Ctor();
+      if (audioRef.current.state === 'suspended') void audioRef.current.resume();
+    } catch {
+      // No audio available; the flashing red chip is still there.
+    }
+  };
+
+  const playAlarm = () => {
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    try {
+      const start = ctx.currentTime;
+      // Three separated beeps carry over a range hood better than one long
+      // tone, and the ramps avoid the click a bare gain switch produces.
+      for (let i = 0; i < 3; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        const at = start + i * 0.45;
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(0.4, at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.32);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(at);
+        osc.stop(at + 0.36);
+      }
+    } catch {
+      // Autoplay policy still blocked it -- nothing else to do.
+    }
+  };
+
+  useEffect(() => () => { void audioRef.current?.close().catch(() => {}); }, []);
 
   // Keep the screen on for the duration. Best-effort: unsupported browsers
   // just fall back to their normal screen timeout.
@@ -67,15 +126,29 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
 
   const timerExpired = timer !== null && timer.secondsLeft === 0;
 
-  // Buzz when a timer hits zero (where vibration exists).
+  // Sound the alarm when a timer hits zero. Vibration is kept as a bonus for
+  // Android, but it is the beep that does the work.
   useEffect(() => {
-    if (timerExpired) navigator.vibrate?.([300, 150, 300, 150, 600]);
+    if (!timerExpired) return;
+    playAlarm();
+    navigator.vibrate?.([300, 150, 300, 150, 600]);
   }, [timerExpired]);
 
   const toggleStep = (i: number) =>
     setDone((d) => d.map((v, idx) => (idx === i ? !v : v)));
 
   const completed = done.filter(Boolean).length;
+  // The first unfinished step -- what the big bottom bar acts on.
+  const currentIndex = done.findIndex((d) => !d);
+
+  const advance = () => {
+    if (currentIndex === -1) return;
+    setDone((d) => d.map((v, i) => (i === currentIndex ? true : v)));
+    navigator.vibrate?.(30);
+    // Bring the next step to the middle of the screen so the cook does not
+    // have to find their place with dirty hands.
+    stepRefs.current[currentIndex + 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   return (
     <div className="fixed inset-0 z-[120] bg-slate-950 text-slate-50 flex flex-col">
@@ -117,8 +190,8 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 pb-safe">
+      {/* Body -- bottom padding lives on the Next Step bar below instead. */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
         {showIngredients && (
           <div className="mb-6 bg-slate-900 rounded-2xl p-4 border border-slate-800">
             <h3 className="text-sm font-bold uppercase tracking-widest text-orange-400 mb-3">Ingredients</h3>
@@ -138,14 +211,18 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
             const minutes = detectStepMinutes(step);
             const isTiming = timer?.stepIndex === i;
             return (
-              <li key={i}>
+              <li key={i} ref={(el) => { stepRefs.current[i] = el; }}>
                 <button
                   onClick={() => toggleStep(i)}
                   className={`w-full text-left flex items-start gap-4 p-4 rounded-2xl border transition-all active:scale-[0.99] ${
                     done[i]
-                      ? 'bg-slate-900/60 border-slate-800 text-slate-500'
+                      // slate-500 on a 60%-alpha panel measured 3.75:1, under
+                      // the 4.5:1 AA floor. slate-400 on the solid panel is
+                      // ~7:1 and still reads as finished next to the
+                      // strike-through and green tick.
+                      ? 'bg-slate-900 border-slate-800 text-slate-400'
                       : 'bg-slate-900 border-slate-700'
-                  }`}
+                  } ${i === currentIndex ? 'ring-2 ring-orange-500' : ''}`}
                 >
                   <span
                     className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center border-2 text-base font-bold mt-0.5 ${
@@ -184,7 +261,10 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
                       </div>
                     ) : (
                       <button
-                        onClick={() => setTimer({ stepIndex: i, secondsLeft: minutes * 60, paused: false })}
+                        onClick={() => {
+                          armAlarm(); // must happen inside the tap, for iOS
+                          setTimer({ stepIndex: i, secondsLeft: minutes * 60, paused: false });
+                        }}
                         className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-slate-800 text-orange-300 font-semibold hover:bg-slate-700 active:scale-95 transition-all"
                       >
                         <Timer className="w-5 h-5" /> Start {minutes} min timer
@@ -204,6 +284,23 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
           </div>
         )}
       </div>
+
+      {/* One target big enough to hit with a knuckle or the back of a hand.
+          Tapping the small step circles is the thing that fails when your
+          fingers are covered in flour, so the primary action gets the full
+          width of the screen and advances the list on its own. */}
+      {currentIndex !== -1 && (
+        <div className="shrink-0 border-t border-slate-800 bg-slate-950 px-4 py-3 pb-safe">
+          <button
+            onClick={advance}
+            className="w-full min-h-[64px] rounded-2xl bg-orange-600 text-white text-xl font-bold flex items-center justify-center gap-3 active:scale-[0.99] hover:bg-orange-500 transition-all"
+          >
+            <Check className="w-6 h-6" />
+            Step {currentIndex + 1} done
+            {currentIndex + 1 < steps.length && <ChevronDown className="w-6 h-6 opacity-80" />}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
