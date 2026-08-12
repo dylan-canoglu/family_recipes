@@ -1,3 +1,51 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    /* Stop iOS Safari inflating text when the phone is rotated. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    /* Installed to the home screen the app is not a web page, so the
+       rubber-band scroll past the top/bottom reads as a glitch. */
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  a {
+    /* Skips the 300ms double-tap-to-zoom wait on touch devices. */
+    touch-action: manipulation;
+  }
+}
+
+@layer utilities {
+  /* index.html sets viewport-fit=cover so the app paints edge to edge, under
+     the iPhone status bar and home indicator. These put the content back
+     inside the safe area. The 0px fallback keeps them no-ops on Android and
+     desktop, where the insets are undefined. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* The mobile header is h-16 (4rem); it has to grow by the status bar inset,
+     and the content below it has to clear the taller header. */
+  .h-header-safe {
+    height: calc(4rem + env(safe-area-inset-top, 0px));
+  }
+
+  .pt-header-safe {
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+  }
+
+  .top-header-safe {
+    top: calc(4rem + env(safe-area-inset-top, 0px));
+  }
+}

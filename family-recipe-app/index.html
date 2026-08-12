@@ -2,9 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>family-recipe-app</title>
+    <link rel="icon" type="image/svg+xml" href="/app-icon.svg" />
+
+    <!-- viewport-fit=cover lets the app paint under the iPhone status bar and
+         home indicator; index.css pads content back with env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>The Family Recipe Vault</title>
+    <meta name="description" content="The family cookbook: 200+ preserved recipes, meal plans, and what everyone has actually cooked." />
+    <meta name="theme-color" content="#ea580c" />
+
+    <!-- iOS ignores most of the web app manifest for home-screen launches, so
+         these have to be declared separately. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="The Vault" />
   </head>
   <body>
     <div id="root"></div>

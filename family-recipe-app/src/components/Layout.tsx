@@ -59,7 +59,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-slate-50 flex">
       
       {/* Mobile Header & Hamburger */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-50 flex items-center justify-between px-4">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-header-safe pt-safe bg-white border-b border-slate-200 z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2 text-orange-600">
           <ChefHat className="w-8 h-8" />
           <span className="font-bold text-xl">The Vault</span>
@@ -72,7 +72,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="absolute top-16 left-0 bottom-0 w-64 bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="absolute top-header-safe left-0 bottom-0 w-64 bg-white shadow-xl pb-safe overflow-y-auto" onClick={e => e.stopPropagation()}>
             <NavLinks />
           </div>
         </div>
@@ -129,7 +129,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 pt-16 md:pt-0 ${
+      <div className={`flex-1 transition-all duration-300 pt-header-safe md:pt-0 pb-safe ${
         isSidebarOpen ? 'md:ml-64' : 'md:ml-20'
       }`}>
         <main className="min-h-full">
