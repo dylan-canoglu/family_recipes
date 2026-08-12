@@ -2,10 +2,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { ChefHat, Clock, Heart, HeartCrack, LogIn } from 'lucide-react';
 
 export function Favorites() {
   const { user } = useAuth();
+  const t = useT();
 
   // Query Dexie for the user's favorites, then fetch the corresponding recipes
   const favoriteRecipes = useLiveQuery(async () => {
@@ -34,9 +36,9 @@ export function Favorites() {
         <div className="bg-orange-50 p-6 rounded-full mb-6">
           <Heart className="w-12 h-12 text-orange-400" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Save Your Favorites</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">{t('favorites.title')}</h2>
         <p className="text-slate-500 mb-8 max-w-md">
-          Sign in to curate your personal collection of family recipes for quick access.
+          {t('favorites.body')}
         </p>
         <Link 
           to="/auth" 

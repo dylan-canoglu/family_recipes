@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCcw, ScanText, Save, Loader2, AlertTriangle, Languages } from 'lucide-react';
 import { extractTextFromImage, parseRecipeText, OCR_LANGUAGES, type OcrLanguage } from '../lib/ocr';
 import { type ScanDraftFields, EMPTY_SCAN_DRAFT } from '../lib/recipeDraft';
+import { useT } from '../lib/i18n';
 
 // The OCR review drawer: everything a scanned recipe needs before it can be
 // saved, all of it editable -- OCR on handwritten notebook pages WILL misread
@@ -36,6 +37,7 @@ function Toggle({ label, hint, checked, onChange }: {
 }
 
 export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeDialogProps) {
+  const t = useT();
   const [fields, setFields] = useState<ScanDraftFields>(EMPTY_SCAN_DRAFT);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [phase, setPhase] = useState<OcrPhase>('running');
@@ -130,9 +132,9 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
         {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-slate-100 shrink-0 pt-safe">
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <ScanText className="w-5 h-5 text-orange-600" /> Review Scanned Recipe
+            <ScanText className="w-5 h-5 text-orange-600" /> {t('scan.reviewTitle')}
           </h3>
-          <button onClick={onCancel} className="p-2 text-slate-400 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center" title="Close">
+          <button onClick={onCancel} className="p-2 text-slate-400 hover:text-slate-600 min-h-[44px] min-w-[44px] flex items-center justify-center" title={t('common.close')}>
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -155,21 +157,21 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
               />
             )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/60 rounded-full px-2 py-1 backdrop-blur-sm">
-              <button onClick={() => setZoom((z) => Math.max(1, z - 0.5))} className="p-2 text-white/80 hover:text-white" title="Zoom out">
+              <button onClick={() => setZoom((z) => Math.max(1, z - 0.5))} className="p-2 text-white/80 hover:text-white" title={t('scan.zoomOut')}>
                 <ZoomOut className="w-5 h-5" />
               </button>
               <span className="text-white/80 text-xs font-semibold w-10 text-center">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom((z) => Math.min(6, z + 0.5))} className="p-2 text-white/80 hover:text-white" title="Zoom in">
+              <button onClick={() => setZoom((z) => Math.min(6, z + 0.5))} className="p-2 text-white/80 hover:text-white" title={t('scan.zoomIn')}>
                 <ZoomIn className="w-5 h-5" />
               </button>
-              <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-2 text-white/80 hover:text-white" title="Reset view">
+              <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-2 text-white/80 hover:text-white" title={t('scan.resetView')}>
                 <RotateCcw className="w-5 h-5" />
               </button>
             </div>
 
             {phase === 'running' && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 text-white text-xs font-semibold rounded-full px-4 py-2 backdrop-blur-sm">
-                <Loader2 className="w-4 h-4 animate-spin" /> Reading the scan… {progress}%
+                <Loader2 className="w-4 h-4 animate-spin" /> {t('scan.reading', { pct: progress })}
               </div>
             )}
           </div>
@@ -178,13 +180,13 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
           <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-4">
             {phase === 'running' && (
               <p className="text-sm text-slate-500 bg-orange-50 border border-orange-100 rounded-lg p-3">
-                Extracting text from the picture — you can already start correcting fields below.
+                {t('scan.extracting')}
               </p>
             )}
             {phase === 'failed' && (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                Couldn't read the image automatically (this needs a network connection the first time). Type the recipe in below — the scan will still be attached.
+                {t('scan.failed')}
               </p>
             )}
             {/* Re-reading in another language is the single most effective
@@ -192,7 +194,7 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
                 fields rather than hidden in a menu. */}
             <div className="flex items-center gap-2">
               <Languages className="w-4 h-4 text-slate-400 shrink-0" />
-              <label className="text-sm font-semibold text-slate-700 shrink-0" htmlFor="scanrecipedialog-written-in">Written in</label>
+              <label className="text-sm font-semibold text-slate-700 shrink-0" htmlFor="scanrecipedialog-written-in">{t('scan.writtenIn')}</label>
               <select id="scanrecipedialog-written-in"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as OcrLanguage)}
@@ -209,17 +211,14 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>
-                  Almost nothing readable came off this page. <strong className="font-semibold">Cursive
-                  handwriting cannot be transcribed</strong> — type this one in by hand. If the page is
-                  printed, a straight-on, well-lit photo or a different language above may help.
-                  The picture stays attached either way.
+                  Almost nothing readable came off this page. <strong className="font-semibold">{t('scan.lowYieldStrong')}</strong>{' '}
+                  {t('scan.lowYieldRest')}
                 </span>
               </p>
             )}
             {phase === 'done' && yieldChars >= 40 && (
               <p className="text-sm text-slate-500 bg-blue-50 border border-blue-100 rounded-lg p-3">
-                Auto-read from the scan. Check every line against the picture — handwriting
-                and accents come through wrong often, and amounts are the easiest thing to miss.
+                {t('scan.done')}
               </p>
             )}
 

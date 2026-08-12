@@ -4,9 +4,11 @@ import { supabase } from '../lib/supabase';
 import { ChefHat, Mail, Lock, Eye } from 'lucide-react';
 import { Toast } from '../components/Toast';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 
 export function Auth() {
   const { enterGuestMode } = useAuth();
+  const t = useT();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +31,7 @@ export function Auth() {
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setToast('Success! Check your email to verify your account.');
+        setToast(t('auth.checkEmail'));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during authentication.');
@@ -44,12 +46,12 @@ export function Auth() {
         <div className="flex flex-col items-center mb-8">
           <ChefHat className="w-12 h-12 text-orange-600 mb-4" />
           <h2 className="text-2xl font-bold text-slate-900">
-            {isLogin ? 'Welcome Back' : 'Join the Vault'}
+            {isLogin ? t('auth.welcomeBack') : t('auth.joinVault')}
           </h2>
           <p className="text-slate-500 text-sm mt-2 text-center">
             {isLogin 
-              ? 'Sign in to log your cooking and save favorites.' 
-              : 'Create an account to personalize your recipe vault.'}
+              ? t('auth.signInBlurb')
+              : t('auth.signUpBlurb')}
           </p>
         </div>
 
@@ -61,7 +63,7 @@ export function Auth() {
 
         <form onSubmit={handleAuth} className="space-y-4">
           <div>
-            <label htmlFor="auth-email" className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label htmlFor="auth-email" className="block text-sm font-medium text-slate-700 mb-1">{t('auth.email')}</label>
             <div className="relative">
               <Mail className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -77,7 +79,7 @@ export function Auth() {
           </div>
 
           <div>
-            <label htmlFor="auth-password" className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label htmlFor="auth-password" className="block text-sm font-medium text-slate-700 mb-1">{t('auth.password')}</label>
             <div className="relative">
               <Lock className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               {/* autoComplete lets a password manager offer to save a new
@@ -100,7 +102,7 @@ export function Auth() {
             disabled={loading}
             className="w-full bg-orange-600 text-white font-semibold py-2 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
           >
-            {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
+            {loading ? t('auth.processing') : isLogin ? t('common.signIn') : t('common.signUp')}
           </button>
         </form>
 
@@ -110,7 +112,7 @@ export function Auth() {
             onClick={() => setIsLogin(!isLogin)}
             className="text-sm text-orange-600 hover:underline"
           >
-            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            {isLogin ? t('auth.needAccount') : t('auth.haveAccount')}
           </button>
         </div>
 
@@ -127,10 +129,10 @@ export function Auth() {
             className="w-full flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-lg border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-[0.99] transition-all"
           >
             <Eye className="w-5 h-5 text-slate-400" />
-            Explore as guest
+            {t('guest.explore')}
           </button>
           <p className="text-xs text-slate-400 mt-3 text-center">
-            Browse every recipe read-only. No account, and nothing you tap is saved.
+            {t('guest.exploreHint')}
           </p>
         </div>
       </div>

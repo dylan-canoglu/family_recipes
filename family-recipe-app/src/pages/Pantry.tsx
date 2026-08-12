@@ -5,6 +5,7 @@ import { type Recipe } from '../lib/db';
 import { getVisibleRecipes } from '../lib/recipes';
 import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
+import { useT, type TranslationKey } from '../lib/i18n';
 import { formatIngredientList } from '../lib/format';
 import { isCookable } from '../lib/suggest';
 import { Refrigerator, Sparkles, Clock } from 'lucide-react';
@@ -15,25 +16,25 @@ import { Refrigerator, Sparkles, Clock } from 'lucide-react';
 // structured legacy imports and plain-string recipes participate.
 //
 // Synonyms cover English + the French/Turkish the notebooks are written in.
-const STAPLES: { id: string; label: string; emoji: string; synonyms: string[] }[] = [
-  { id: 'rice', label: 'Rice', emoji: '🍚', synonyms: ['rice', 'riz', 'pirinç', 'pirinc', 'pilav'] },
-  { id: 'pasta', label: 'Pasta', emoji: '🍝', synonyms: ['pasta', 'makarna', 'spaghetti', 'noodle', 'pâtes', 'pates', 'vermicelli'] },
-  { id: 'eggs', label: 'Eggs', emoji: '🥚', synonyms: ['egg', 'oeuf', 'œuf', 'yumurta'] },
-  { id: 'ground-meat', label: 'Ground Meat / Köfte', emoji: '🥩', synonyms: ['ground beef', 'ground meat', 'minced meat', 'mince', 'kıyma', 'kiyma', 'hachée', 'hache', 'köfte', 'kofte'] },
-  { id: 'chicken', label: 'Chicken', emoji: '🍗', synonyms: ['chicken', 'poulet', 'tavuk'] },
-  { id: 'garlic', label: 'Garlic', emoji: '🧄', synonyms: ['garlic', 'ail', 'sarımsak', 'sarimsak'] },
-  { id: 'onion', label: 'Onion', emoji: '🧅', synonyms: ['onion', 'oignon', 'soğan', 'sogan'] },
-  { id: 'potato', label: 'Potato', emoji: '🥔', synonyms: ['potato', 'pomme de terre', 'patates'] },
-  { id: 'tomato', label: 'Tomato', emoji: '🍅', synonyms: ['tomato', 'tomate', 'domates'] },
-  { id: 'olive-oil', label: 'Olive Oil', emoji: '🫒', synonyms: ['olive oil', "huile d'olive", 'zeytinyağı', 'zeytinyagi', 'zeytin yağı'] },
-  { id: 'butter', label: 'Butter', emoji: '🧈', synonyms: ['butter', 'beurre', 'tereyağı', 'tereyagi', 'tereyag'] },
-  { id: 'flour', label: 'Flour', emoji: '🌾', synonyms: ['flour', 'farine'] },
-  { id: 'milk', label: 'Milk', emoji: '🥛', synonyms: ['milk', 'lait', 'süt'] },
-  { id: 'yogurt', label: 'Yogurt', emoji: '🥣', synonyms: ['yogurt', 'yoghurt', 'yaourt', 'yoğurt', 'yogurt'] },
-  { id: 'cheese', label: 'Cheese', emoji: '🧀', synonyms: ['cheese', 'fromage', 'peynir', 'kaşar', 'kasar'] },
-  { id: 'lemon', label: 'Lemon', emoji: '🍋', synonyms: ['lemon', 'citron', 'limon'] },
-  { id: 'lentils', label: 'Lentils', emoji: '🫘', synonyms: ['lentil', 'lentille', 'mercimek'] },
-  { id: 'bulgur', label: 'Bulgur', emoji: '🌾', synonyms: ['bulgur', 'boulgour'] },
+const STAPLES: { id: string; labelKey: TranslationKey; emoji: string; synonyms: string[] }[] = [
+  { id: 'rice', labelKey: 'staple.rice', emoji: '🍚', synonyms: ['rice', 'riz', 'pirinç', 'pirinc', 'pilav'] },
+  { id: 'pasta', labelKey: 'staple.pasta', emoji: '🍝', synonyms: ['pasta', 'makarna', 'spaghetti', 'noodle', 'pâtes', 'pates', 'vermicelli'] },
+  { id: 'eggs', labelKey: 'staple.eggs', emoji: '🥚', synonyms: ['egg', 'oeuf', 'œuf', 'yumurta'] },
+  { id: 'ground-meat', labelKey: 'staple.groundmeat', emoji: '🥩', synonyms: ['ground beef', 'ground meat', 'minced meat', 'mince', 'kıyma', 'kiyma', 'hachée', 'hache', 'köfte', 'kofte'] },
+  { id: 'chicken', labelKey: 'staple.chicken', emoji: '🍗', synonyms: ['chicken', 'poulet', 'tavuk'] },
+  { id: 'garlic', labelKey: 'staple.garlic', emoji: '🧄', synonyms: ['garlic', 'ail', 'sarımsak', 'sarimsak'] },
+  { id: 'onion', labelKey: 'staple.onion', emoji: '🧅', synonyms: ['onion', 'oignon', 'soğan', 'sogan'] },
+  { id: 'potato', labelKey: 'staple.potato', emoji: '🥔', synonyms: ['potato', 'pomme de terre', 'patates'] },
+  { id: 'tomato', labelKey: 'staple.tomato', emoji: '🍅', synonyms: ['tomato', 'tomate', 'domates'] },
+  { id: 'olive-oil', labelKey: 'staple.oliveoil', emoji: '🫒', synonyms: ['olive oil', "huile d'olive", 'zeytinyağı', 'zeytinyagi', 'zeytin yağı'] },
+  { id: 'butter', labelKey: 'staple.butter', emoji: '🧈', synonyms: ['butter', 'beurre', 'tereyağı', 'tereyagi', 'tereyag'] },
+  { id: 'flour', labelKey: 'staple.flour', emoji: '🌾', synonyms: ['flour', 'farine'] },
+  { id: 'milk', labelKey: 'staple.milk', emoji: '🥛', synonyms: ['milk', 'lait', 'süt'] },
+  { id: 'yogurt', labelKey: 'staple.yogurt', emoji: '🥣', synonyms: ['yogurt', 'yoghurt', 'yaourt', 'yoğurt', 'yogurt'] },
+  { id: 'cheese', labelKey: 'staple.cheese', emoji: '🧀', synonyms: ['cheese', 'fromage', 'peynir', 'kaşar', 'kasar'] },
+  { id: 'lemon', labelKey: 'staple.lemon', emoji: '🍋', synonyms: ['lemon', 'citron', 'limon'] },
+  { id: 'lentils', labelKey: 'staple.lentils', emoji: '🫘', synonyms: ['lentil', 'lentille', 'mercimek'] },
+  { id: 'bulgur', labelKey: 'staple.bulgur', emoji: '🌾', synonyms: ['bulgur', 'boulgour'] },
 ];
 
 interface PantryMatch {
@@ -46,6 +47,7 @@ interface PantryMatch {
 
 export function Pantry() {
   const { user, isGuest } = useAuth();
+  const t = useT();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -81,7 +83,7 @@ export function Pantry() {
               coveredLines.add(i);
             }
           });
-          if (hit) matchedStaples.push(staple.label);
+          if (hit) matchedStaples.push(staple.labelKey);
         }
 
         return {
@@ -106,9 +108,9 @@ export function Pantry() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-2">
           <Refrigerator className="w-10 h-10 text-orange-600" />
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900">What Can I Make?</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900">{t('pantry.title')}</h1>
         </div>
-        <p className="text-slate-600 mb-6">Tap what's in your kitchen — the vault finds the recipes that fit.</p>
+        <p className="text-slate-600 mb-6">{t('pantry.blurb')}</p>
 
         {/* Staple quick-select */}
         <div className="flex flex-wrap gap-2 mb-8">
@@ -124,7 +126,7 @@ export function Pantry() {
                     : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
                 }`}
               >
-                <span className="text-base">{staple.emoji}</span> {staple.label}
+                <span className="text-base">{staple.emoji}</span> {t(staple.labelKey)}
               </button>
             );
           })}
@@ -133,11 +135,11 @@ export function Pantry() {
         {selected.size === 0 ? (
           <div className="text-center py-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
             <Sparkles className="w-8 h-8 mx-auto mb-3 text-slate-300" />
-            Select at least one staple to see matches.
+            {t('pantry.nothingSelected')}
           </div>
         ) : matches.length === 0 ? (
           <div className="text-center py-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-            No cookable recipes use those staples yet.
+            {t('pantry.noMatches')}
           </div>
         ) : (
           <ul className="space-y-3">
@@ -170,7 +172,7 @@ export function Pantry() {
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {matchedStaples.map((label) => (
                       <span key={label} className="text-[11px] font-semibold bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">
-                        ✓ {label}
+                        ✓ {t(label as TranslationKey)}
                       </span>
                     ))}
                   </div>

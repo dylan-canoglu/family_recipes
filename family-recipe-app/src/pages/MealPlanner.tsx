@@ -8,6 +8,7 @@ import { getVisibleRecipes } from '../lib/recipes';
 import { syncMealPlan, syncRecipeStats, syncRecipes } from '../lib/sync';
 import { buildStatsMap, pickVariedSequence, rankRecipes, type RankContext } from '../lib/suggest';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { HOUSEHOLD_ID, MEAL_SLOTS, type MealSlot } from '../lib/constants';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, X, Shuffle, Wand2, ShoppingCart } from 'lucide-react';
 import { RecipePickerDialog } from '../components/RecipePickerDialog';
@@ -45,6 +46,7 @@ const SUGGESTION_COUNT = 6;
 
 export function MealPlanner() {
   const { user } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [picking, setPicking] = useState<{ date: string; slot: MealSlot } | null>(null);
@@ -206,8 +208,8 @@ export function MealPlanner() {
     return (
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         <CalendarDays className="w-12 h-12 text-slate-300 mb-4" />
-        <h2 className="text-2xl font-bold text-slate-900">Sign in to plan meals</h2>
-        <p className="text-slate-500 mt-2">The meal plan is shared with the whole family.</p>
+        <h2 className="text-2xl font-bold text-slate-900">{t('planner.signInTitle')}</h2>
+        <p className="text-slate-500 mt-2">{t('planner.signInBody')}</p>
       </div>
     );
   }

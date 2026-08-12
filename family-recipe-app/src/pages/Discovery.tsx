@@ -5,6 +5,7 @@ import { db, type Recipe, type RecipeStat } from '../lib/db';
 import { getVisibleRecipes } from '../lib/recipes';
 import { syncRecipeStats } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { StarRating } from '../components/StarRating';
 import { Compass, Flame, Sparkles, Clock, History, Shuffle, CookingPot, ChefHat } from 'lucide-react';
 
@@ -94,6 +95,7 @@ function Panel({
 
 export function Discovery() {
   const { user } = useAuth();
+  const t = useT();
   const [shuffleKey, setShuffleKey] = useState(0);
 
   // Family-wide aggregates are cached locally, but refresh them on mount so
@@ -126,9 +128,9 @@ export function Discovery() {
         {/* Not "sign in to explore the vault" -- guests can browse every
             recipe. What needs an account is the cooking history this page
             is built from. */}
-        <h2 className="text-2xl font-bold text-slate-900">Sign in for Discovery</h2>
+        <h2 className="text-2xl font-bold text-slate-900">{t('discovery.signIn')}</h2>
         <p className="text-slate-500 mt-2">
-          These picks come from what your family has actually cooked and rated.
+          {t('discovery.signInBody')}
         </p>
       </div>
     );

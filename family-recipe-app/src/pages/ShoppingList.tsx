@@ -5,6 +5,7 @@ import { db, type Recipe } from '../lib/db';
 import { getVisibleRecipes } from '../lib/recipes';
 import { syncMealPlan, syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { buildGroceryList } from '../lib/grocery';
 import { ShoppingCart, Plus, X, Search, CalendarDays, Trash2, CheckCircle2, Share2, Check } from 'lucide-react';
 
@@ -37,6 +38,7 @@ const toISODate = (date: Date) =>
 
 export function ShoppingList() {
   const { user, isGuest } = useAuth();
+  const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL ids (arriving from the catalog's Shop mode) merge into the stored
@@ -111,7 +113,7 @@ export function ShoppingList() {
   const asPlainText = () => {
     const lines = groceryItems.map((item) => `${checked[item.key] ? '[x]' : '[ ]'} ${item.label}`);
     const from = selectedRecipes.map((r) => r.title).join(', ');
-    return [`Shopping list (${groceryItems.length} items)`, from && `For: ${from}`, '', ...lines]
+    return [t('shopping.exportHeader', { count: groceryItems.length }), from && t('shopping.exportFor', { titles: from }), '', ...lines]
       .filter((l) => l !== undefined && l !== '')
       .join('\n');
   };
@@ -123,7 +125,7 @@ export function ShoppingList() {
     // rejects it. Clipboard is the desktop fallback.
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Shopping List', text });
+        await navigator.share({ title: t('shopping.title'), text });
         return;
       }
     } catch {
@@ -151,7 +153,7 @@ export function ShoppingList() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-4 mb-2">
           <ShoppingCart className="w-10 h-10 text-orange-600 shrink-0" />
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 flex-1 min-w-0">Shopping List</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 flex-1 min-w-0">{t('shopping.title')}</h1>
           {groceryItems.length > 0 && (
             <button
               onClick={shareList}
@@ -160,21 +162,21 @@ export function ShoppingList() {
                   ? 'bg-green-50 border-green-200 text-green-700'
                   : 'bg-white border-slate-200 text-slate-700 hover:border-orange-300'
               }`}
-              title="Send this list to Messages, WhatsApp or Notes"
+              title={t('shopping.shareTitle')}
             >
               {copied ? <Check className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
-              <span className="hidden sm:inline">{copied ? 'Copied' : 'Share'}</span>
+              <span className="hidden sm:inline">{copied ? t('shopping.copied') : t('shopping.share')}</span>
             </button>
           )}
         </div>
         <p className="text-slate-600 mb-6">
-          Pick recipes and get one consolidated list — same ingredients across recipes are merged.
+          {t('shopping.blurb')}
         </p>
 
         {/* Selected recipes */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <h2 className="font-bold text-slate-800">Recipes ({selectedRecipes.length})</h2>
+            <h2 className="font-bold text-slate-800">{t('shopping.recipes', { count: selectedRecipes.length })}</h2>
             <div className="flex gap-2">
               <button
                 onClick={addThisWeek}
@@ -248,7 +250,7 @@ export function ShoppingList() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
-                {checkedCount} / {groceryItems.length} in the cart
+                {t('shopping.inCart', { done: checkedCount, total: groceryItems.length })}
               </h2>
               <button
                 onClick={clearAll}

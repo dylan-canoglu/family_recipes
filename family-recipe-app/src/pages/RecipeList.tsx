@@ -7,6 +7,7 @@ import { getVisibleRecipes, updateRecipeInCloud } from '../lib/recipes';
 import { isCookable } from '../lib/suggest';
 import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
+import { useT, type TranslationKey } from '../lib/i18n';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ChefHat, Clock, Search, ClipboardCheck, ShoppingCart,
@@ -24,11 +25,11 @@ type SmartFilter = 'all' | 'college' | 'mains' | 'classics';
 
 const QUICK_TOTAL_MIN = 45;
 
-const SMART_FILTERS: { id: SmartFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'college', label: '🎓 College Staples' },
-  { id: 'mains', label: 'Genuine Mains' },
-  { id: 'classics', label: 'Family Classics' },
+const SMART_FILTERS: { id: SmartFilter; labelKey: TranslationKey }[] = [
+  { id: 'all', labelKey: 'vault.filterAll' as const },
+  { id: 'college', labelKey: 'vault.filterCollege' as const },
+  { id: 'mains', labelKey: 'vault.filterMains' as const },
+  { id: 'classics', labelKey: 'vault.filterClassics' as const },
 ];
 
 function matchesSmartFilter(recipe: Recipe, filter: SmartFilter): boolean {
@@ -77,6 +78,7 @@ interface DialogState {
 
 export function RecipeList() {
   const { user, isAdmin, isGuest } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   // Home's lane headers deep-link here pre-filtered, e.g. /recipes?dish=Soup.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -274,7 +276,7 @@ export function RecipeList() {
       {/* Sticky smart filter bar: pinned to the top of the scroll region. */}
       <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 md:px-12 py-2 flex gap-2 overflow-x-auto">
-          {SMART_FILTERS.map(({ id, label }) => (
+          {SMART_FILTERS.map(({ id, labelKey }) => (
             <button
               key={id}
               onClick={() => changeSmartFilter(id)}
@@ -284,7 +286,7 @@ export function RecipeList() {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-orange-300'
               }`}
             >
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
@@ -307,7 +309,7 @@ export function RecipeList() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:border-green-400'
                 }`}
               >
-                <ShoppingCart className="w-4 h-4" /> {mode === 'shop' ? 'Selecting…' : 'Shop'}
+                <ShoppingCart className="w-4 h-4" /> {mode === 'shop' ? 'Selecting…' : t('vault.shop')}
               </button>
               {isAdmin && (
                 <button
@@ -318,7 +320,7 @@ export function RecipeList() {
                       : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-400'
                   }`}
                 >
-                  <ClipboardCheck className="w-4 h-4" /> Review Mode
+                  <ClipboardCheck className="w-4 h-4" /> {t('vault.reviewMode')}
                 </button>
               )}
             </div>
@@ -340,7 +342,7 @@ export function RecipeList() {
               <Search className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search recipes..."
+                placeholder={t('vault.searchPlaceholder')}
                 className="w-full pl-10 pr-4 py-2 min-h-[44px] border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -351,7 +353,7 @@ export function RecipeList() {
               value={filterDishType}
               onChange={(e) => changeDishType(e.target.value)}
             >
-              <option value="">All Dish Types</option>
+              <option value="">{t('vault.allDishTypes')}</option>
               <option value="Main Dish">Main Dish</option>
               <option value="Appetizer">Appetizer</option>
               <option value="Dessert">Dessert</option>

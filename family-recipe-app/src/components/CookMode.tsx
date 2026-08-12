@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, Check, Timer, Pause, Play, RotateCcw, ListChecks, ChevronDown } from 'lucide-react';
+import { useT } from '../lib/i18n';
 
 // Hands-free cooking HUD: high-contrast, oversized touch targets, step
 // checkboxes and per-step timers. Fullscreen and self-contained so a phone
@@ -48,6 +49,7 @@ interface RunningTimer {
 }
 
 export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) {
+  const t = useT();
   const [done, setDone] = useState<boolean[]>(() => steps.map(() => false));
   const [showIngredients, setShowIngredients] = useState(false);
   const [timer, setTimer] = useState<RunningTimer | null>(null);
@@ -155,21 +157,21 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 pt-safe border-b border-slate-800 shrink-0">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-widest text-orange-400">Cook Mode</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-orange-400">{t('cook.title')}</p>
           <h2 className="text-lg font-bold truncate">{title}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowIngredients((s) => !s)}
             className={`p-3 min-h-[44px] min-w-[44px] rounded-xl transition-colors ${showIngredients ? 'bg-orange-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-            title="Toggle ingredients"
+            title={t('cook.toggleIngredients')}
           >
             <ListChecks className="w-6 h-6" />
           </button>
           <button
             onClick={onClose}
             className="p-3 min-h-[44px] min-w-[44px] rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
-            title="Exit cook mode"
+            title={t('cook.exit')}
           >
             <X className="w-6 h-6" />
           </button>
@@ -179,7 +181,7 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
       {/* Progress */}
       <div className="px-4 py-2 shrink-0 border-b border-slate-800">
         <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-1">
-          <span>{completed} of {steps.length} steps done</span>
+          <span>{t('cook.progress', { done: completed, total: steps.length })}</span>
           <span>{Math.round((completed / Math.max(1, steps.length)) * 100)}%</span>
         </div>
         <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -194,7 +196,7 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
         {showIngredients && (
           <div className="mb-6 bg-slate-900 rounded-2xl p-4 border border-slate-800">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-orange-400 mb-3">Ingredients</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-orange-400 mb-3">{t('recipe.ingredients')}</h3>
             <ul className="space-y-2 text-lg leading-snug">
               {ingredients.map((ing, i) => (
                 <li key={i} className="flex items-start gap-2">
@@ -241,12 +243,12 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
                         timerExpired && isTiming ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-800 text-orange-300'
                       }`}>
                         <Timer className="w-6 h-6" />
-                        {timerExpired ? 'Done!' : formatClock(timer!.secondsLeft)}
+                        {timerExpired ? t('cook.timerDone') : formatClock(timer!.secondsLeft)}
                         {!timerExpired && (
                           <button
                             onClick={() => setTimer((t) => (t ? { ...t, paused: !t.paused } : t))}
                             className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600"
-                            title={timer!.paused ? 'Resume' : 'Pause'}
+                            title={timer!.paused ? t('cook.resume') : t('cook.pause')}
                           >
                             {timer!.paused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
                           </button>
@@ -254,7 +256,7 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
                         <button
                           onClick={() => setTimer(null)}
                           className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600"
-                          title="Clear timer"
+                          title={t('cook.clearTimer')}
                         >
                           <RotateCcw className="w-5 h-5" />
                         </button>
@@ -267,7 +269,7 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
                         }}
                         className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] rounded-xl bg-slate-800 text-orange-300 font-semibold hover:bg-slate-700 active:scale-95 transition-all"
                       >
-                        <Timer className="w-5 h-5" /> Start {minutes} min timer
+                        <Timer className="w-5 h-5" /> {t('cook.startTimer', { minutes })}
                       </button>
                     )}
                   </div>
@@ -279,8 +281,8 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
 
         {completed === steps.length && steps.length > 0 && (
           <div className="mt-8 mb-4 text-center bg-green-950/60 border border-green-800 rounded-2xl p-6">
-            <p className="text-2xl font-bold text-green-300">Afiyet olsun! 🍽️</p>
-            <p className="text-slate-400 mt-1">All steps done — don't forget to log the cook.</p>
+            <p className="text-2xl font-bold text-green-300">{t('cook.finished')}</p>
+            <p className="text-slate-400 mt-1">{t('cook.finishedHint')}</p>
           </div>
         )}
       </div>
@@ -296,7 +298,7 @@ export function CookMode({ title, ingredients, steps, onClose }: CookModeProps) 
             className="w-full min-h-[64px] rounded-2xl bg-orange-600 text-white text-xl font-bold flex items-center justify-center gap-3 active:scale-[0.99] hover:bg-orange-500 transition-all"
           >
             <Check className="w-6 h-6" />
-            Step {currentIndex + 1} done
+            {t('cook.stepDone', { n: currentIndex + 1 })}
             {currentIndex + 1 < steps.length && <ChevronDown className="w-6 h-6 opacity-80" />}
           </button>
         </div>

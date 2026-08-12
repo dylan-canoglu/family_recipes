@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Recipe } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { Trash2, Eye, RefreshCw, ChefHat, EyeOff, AlertTriangle } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -17,6 +18,7 @@ interface DialogState {
 
 export function Dashboard() {
   const { user } = useAuth();
+  const t = useT();
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -88,7 +90,7 @@ export function Dashboard() {
     return (
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         <ChefHat className="w-12 h-12 text-slate-300 mb-4" />
-        <h2 className="text-2xl font-bold text-slate-900">Sign in to view your Dashboard</h2>
+        <h2 className="text-2xl font-bold text-slate-900">{t('dashboard.signIn')}</h2>
       </div>
     );
   }

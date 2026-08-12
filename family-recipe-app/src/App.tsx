@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './lib/AuthContext';
+import { I18nProvider } from './lib/i18n';
 import { Layout } from './components/Layout';
 import { RecipeList } from './pages/RecipeList';
 import { RecipeDetail } from './pages/RecipeDetail';
@@ -22,8 +23,9 @@ function App() {
   if (!isSupabaseConfigured) return <ConfigError missing={missingSupabaseVars} />;
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <I18nProvider>
+      <AuthProvider>
+        <BrowserRouter>
         <Routes>
           {/* Auth Route (No Sidebar) */}
           <Route path="/auth" element={<Auth />} />
@@ -43,8 +45,9 @@ function App() {
           <Route path="/add" element={<Layout><AddRecipe /></Layout>} />
           <Route path="/admin" element={<Layout><Admin /></Layout>} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </I18nProvider>
   );
 }
 

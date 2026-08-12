@@ -8,6 +8,7 @@ import { getVisibleRecipes } from '../lib/recipes';
 import { syncMealPlan, syncRecipeStats, syncRecipes } from '../lib/sync';
 import { buildStatsMap, rankRecipes, type RankContext } from '../lib/suggest';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { HOUSEHOLD_ID, MEAL_SLOTS, type MealSlot } from '../lib/constants';
 import { Toast } from '../components/Toast';
 import { ChefHat, CookingPot, Shuffle, CalendarPlus, ChevronRight, Heart, RotateCcw } from 'lucide-react';
@@ -18,15 +19,15 @@ const LANE_SIZE = 8;
 // Without this a first-time visitor lands on an empty vault, since nothing
 // syncs until someone has actually chosen how they want to browse.
 function Welcome({ onExplore }: { onExplore: () => void }) {
+  const t = useT();
   return (
     <div className="min-h-full flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
       <div className="bg-orange-50 p-5 rounded-full mb-6">
         <ChefHat className="w-12 h-12 text-orange-500" />
       </div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-3">The Family Recipe Vault</h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-3">{t('welcome.title')}</h1>
       <p className="text-slate-500 max-w-md mb-8">
-        Two hundred handwritten family recipes, scanned and searchable — with a meal planner,
-        a shopping list that merges everything, and a cook mode for the kitchen counter.
+        {t('welcome.blurb')}
       </p>
 
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
@@ -34,18 +35,17 @@ function Welcome({ onExplore }: { onExplore: () => void }) {
           to="/auth"
           className="flex-1 flex items-center justify-center min-h-[44px] px-6 rounded-xl bg-orange-600 text-white font-semibold shadow-sm hover:bg-orange-700 active:scale-[0.98] transition-all"
         >
-          Sign In
+          {t('common.signIn')}
         </Link>
         <button
           onClick={onExplore}
           className="flex-1 flex items-center justify-center min-h-[44px] px-6 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 active:scale-[0.98] transition-all"
         >
-          Explore as guest
+          {t('guest.explore')}
         </button>
       </div>
       <p className="text-xs text-slate-400 mt-4 max-w-sm">
-        Guests get the whole vault read-only — nothing is saved, and the family's
-        favorites, notes and meal plan stay private.
+        {t('welcome.guestNote')}
       </p>
     </div>
   );
@@ -121,6 +121,7 @@ function Lane({
 
 export function Home() {
   const { user, isGuest, enterGuestMode } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   const [shuffle, setShuffle] = useState(seedForToday);
   const [skippedIds, setSkippedIds] = useState<string[]>([]);
@@ -250,7 +251,7 @@ export function Home() {
   if (!recipes || !lanes) {
     return (
       <div className="min-h-full flex items-center justify-center bg-slate-50">
-        <p className="text-xl text-slate-600 animate-pulse">Warming up the kitchen...</p>
+        <p className="text-xl text-slate-600 animate-pulse">{t('common.loading')}</p>
       </div>
     );
   }

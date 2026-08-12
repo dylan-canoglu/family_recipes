@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { HOUSEHOLD_ID } from '../lib/constants';
 import { pushRecipeToCloud } from '../lib/recipes';
 import { PlusCircle, Clock, ChefHat, Save, LogIn, Camera, PenLine } from 'lucide-react';
@@ -13,6 +14,7 @@ import { Toast } from '../components/Toast';
 
 export function AddRecipe() {
   const { user } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -188,9 +190,9 @@ export function AddRecipe() {
         <div className="bg-orange-50 p-6 rounded-full mb-6">
           <PlusCircle className="w-12 h-12 text-orange-400" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Sign in to add a recipe</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">{t('add.signInTitle')}</h2>
         <p className="text-slate-500 mb-8 max-w-md">
-          Contributions are tied to your account, so the family knows who added what.
+          {t('add.signInBody')}
         </p>
         <Link
           to="/auth"
@@ -232,10 +234,10 @@ export function AddRecipe() {
             onClick={() => scanInputRef.current?.click()}
             className="w-full flex items-center justify-center gap-3 bg-orange-600 text-white px-6 py-4 min-h-[44px] rounded-xl font-bold text-lg hover:bg-orange-700 active:scale-[0.98] transition-all shadow-sm"
           >
-            <Camera className="w-6 h-6" /> 📷 Scan / Upload Recipe Picture
+            <Camera className="w-6 h-6" /> {t('add.scanButton')}
           </button>
           <p className="text-center text-sm text-slate-400 mt-3">
-            Snap a notebook page — the text is read automatically and you correct it before saving. Or type it in below.
+            {t('add.scanHint')}
           </p>
           {/* Said before the scan, not after it fails. Automatic reading works
               on printed and neatly hand-printed pages; it cannot follow
@@ -244,9 +246,8 @@ export function AddRecipe() {
           <p className="text-center text-xs text-slate-400 mt-2 flex items-start justify-center gap-1.5 max-w-md mx-auto">
             <PenLine className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <span>
-              <strong className="font-semibold text-slate-500">Cursive handwriting can't be transcribed</strong> —
-              please type those recipes in by hand. The photo still gets attached either way, so the
-              original page is always there to read.
+              <strong className="font-semibold text-slate-500">{t('add.handwritingWarningStrong')}</strong>{' '}
+              {t('add.handwritingWarningRest')}
             </span>
           </p>
         </div>

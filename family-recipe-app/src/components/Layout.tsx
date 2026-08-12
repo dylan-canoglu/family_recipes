@@ -6,20 +6,21 @@ import {
   ChefHat, Search, Compass, Heart,
   LayoutDashboard, PlusCircle, LogIn, LogOut,
   Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays,
-  House as HomeIcon, ShoppingCart, Refrigerator, Eye
+  House as HomeIcon, ShoppingCart, Refrigerator, Eye, Globe
 } from 'lucide-react';
 import { SyncStatusBadge } from './SyncStatusBadge';
+import { useI18n, LANGUAGES, type Lang } from '../lib/i18n';
 
 // Guests can reach every read-only screen, so the only honest place to say
 // so is somewhere always visible rather than on the pages that happen to
 // refuse a write.
-const GuestChip = () => (
+const GuestChip = ({ label, title }: { label: string; title: string }) => (
   <span
     className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold"
-    title="Browsing read-only. Sign in to save anything."
+    title={title}
   >
     <Eye className="w-3.5 h-3.5" />
-    Guest
+    {label}
   </span>
 );
 
@@ -29,6 +30,7 @@ const isRouteActive = (pathname: string, path: string) =>
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, isGuest, exitGuestMode } = useAuth();
+  const { t, lang, setLang } = useI18n();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Desktop collapse state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile overlay state
@@ -38,24 +40,48 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navItems = [
-    { name: 'Home', path: '/', icon: HomeIcon },
-    { name: 'Search Vault', path: '/recipes', icon: Search },
-    { name: 'Discovery', path: '/discovery', icon: Compass },
-    { name: 'Meal Planner', path: '/planner', icon: CalendarDays },
-    { name: 'Shopping List', path: '/shopping', icon: ShoppingCart },
-    { name: 'What Can I Make?', path: '/pantry', icon: Refrigerator },
-    { name: 'Favorites', path: '/favorites', icon: Heart },
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Add Recipe', path: '/add', icon: PlusCircle },
-    ...(isAdmin ? [{ name: 'Admin', path: '/admin', icon: ShieldCheck }] : []),
+    { name: t('nav.home'), path: '/', icon: HomeIcon },
+    { name: t('nav.searchVault'), path: '/recipes', icon: Search },
+    { name: t('nav.discovery'), path: '/discovery', icon: Compass },
+    { name: t('nav.mealPlanner'), path: '/planner', icon: CalendarDays },
+    { name: t('nav.shoppingList'), path: '/shopping', icon: ShoppingCart },
+    { name: t('nav.pantry'), path: '/pantry', icon: Refrigerator },
+    { name: t('nav.favorites'), path: '/favorites', icon: Heart },
+    { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard },
+    { name: t('nav.addRecipe'), path: '/add', icon: PlusCircle },
+    ...(isAdmin ? [{ name: t('nav.admin'), path: '/admin', icon: ShieldCheck }] : []),
   ];
+
+  // Sits with the account controls rather than in a settings screen: someone
+  // who cannot read the interface needs to find this without navigating it,
+  // and every option is written in its own language for that reason.
+  const LanguagePicker = () => (
+    <div className="px-4 pb-3">
+      <label htmlFor="lang-picker" className="sr-only">{t('nav.language')}</label>
+      <div className="flex items-center gap-2">
+        <Globe className="w-4 h-4 text-slate-400 shrink-0" />
+        <select
+          id="lang-picker"
+          value={lang}
+          onChange={(e) => setLang(e.target.value as Lang)}
+          className="flex-1 min-h-[44px] text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 text-slate-700"
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>{l.label}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
 
   // Account controls. Rendered in both the desktop sidebar and the mobile
   // menu -- it used to live only in the desktop sidebar, which is hidden below
   // the md breakpoint, leaving phones with no way to sign in or out at all.
   // `showLabels` is false only for the collapsed desktop sidebar.
   const AuthSection = ({ showLabels = true }: { showLabels?: boolean }) => (
-    <div className="p-4 border-t border-slate-100">
+    <div className="border-t border-slate-100 pt-3">
+      {showLabels && <LanguagePicker />}
+      <div className="px-4 pb-4">
       {user ? (
         <div className={`flex flex-col ${!showLabels && 'items-center'}`}>
           {showLabels && <span className="text-xs text-slate-400 mb-2 truncate">{user.email}</span>}
@@ -64,14 +90,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className={`flex items-center gap-3 p-3 rounded-xl text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all w-full ${!showLabels && 'justify-center'}`}
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
-            {showLabels && <span>Sign Out</span>}
+            {showLabels && <span>{t('common.signOut')}</span>}
           </button>
         </div>
       ) : (
         <div className={`flex flex-col gap-2 ${!showLabels && 'items-center'}`}>
           {isGuest && showLabels && (
             <p className="text-xs text-slate-400 mb-1">
-              Browsing read-only as a guest. Sign in to favorite, plan and add recipes.
+              {t('guest.explanation')}
             </p>
           )}
           <Link
@@ -80,7 +106,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className={`flex items-center gap-3 p-3 rounded-xl text-orange-600 bg-orange-50 hover:bg-orange-100 transition-all w-full font-semibold ${!showLabels && 'justify-center'}`}
           >
             <LogIn className="w-5 h-5 flex-shrink-0" />
-            {showLabels && <span>Sign In</span>}
+            {showLabels && <span>{t('common.signIn')}</span>}
           </Link>
           {isGuest && showLabels && (
             <button
@@ -90,11 +116,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               }}
               className="text-xs text-slate-400 hover:text-slate-600 transition-colors p-1 text-left"
             >
-              Leave guest mode
+              {t('guest.leave')}
             </button>
           )}
         </div>
       )}
+      </div>
     </div>
   );
 
@@ -129,9 +156,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // opens the existing overlay, which already lists everything else along with
   // the account controls.
   const tabs = [
-    { name: 'Home', path: '/', icon: HomeIcon },
-    { name: 'Vault', path: '/recipes', icon: Search },
-    { name: 'Planner', path: '/planner', icon: CalendarDays },
+    { name: t('nav.home'), path: '/', icon: HomeIcon },
+    { name: t('nav.vault'), path: '/recipes', icon: Search },
+    { name: t('nav.planner'), path: '/planner', icon: CalendarDays },
   ];
 
   return (
@@ -144,14 +171,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="md:hidden fixed top-0 left-0 right-0 h-header-safe pt-safe bg-white border-b border-slate-200 z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2 text-orange-600">
           <ChefHat className="w-8 h-8" />
-          <span className="font-bold text-xl">The Vault</span>
+          <span className="font-bold text-xl">{t('nav.appName')}</span>
         </div>
         <div className="flex items-center gap-2">
-          {isGuest && <GuestChip />}
+          {isGuest && <GuestChip label={t('guest.chip')} title={t('guest.chipTitle')} />}
           <SyncStatusBadge />
           {/* Opening the menu is the tab bar's "More" job now; this only closes it. */}
           {isMobileMenuOpen && (
-            <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-600" title="Close menu">
+            <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-600" title={t('nav.closeMenu')}>
               <X className="w-6 h-6" />
             </button>
           )}
@@ -181,11 +208,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="h-20 flex items-center justify-between px-4 border-b border-slate-100">
           <Link to="/" className="flex items-center gap-3 text-orange-600 overflow-hidden">
             <ChefHat className="w-8 h-8 flex-shrink-0" />
-            {isSidebarOpen && <span className="font-bold text-xl whitespace-nowrap">The Vault</span>}
+            {isSidebarOpen && <span className="font-bold text-xl whitespace-nowrap">{t('nav.appName')}</span>}
           </Link>
           {isSidebarOpen && (
             <div className="flex items-center gap-2">
-              {isGuest && <GuestChip />}
+              {isGuest && <GuestChip label={t('guest.chip')} title={t('guest.chipTitle')} />}
               <SyncStatusBadge />
             </div>
           )}
@@ -245,7 +272,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <Menu className="w-6 h-6" />
-            <span className="text-[11px] font-semibold">More</span>
+            <span className="text-[11px] font-semibold">{t('nav.more')}</span>
           </button>
         </div>
       </nav>

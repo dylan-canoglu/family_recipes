@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { useT } from '../lib/i18n';
 import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye, CookingPot, X, Flame, Users } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -20,9 +21,9 @@ import { syncRecipePhotos } from '../lib/sync';
 // Portion presets: 1x as written, 2x for two people with leftovers, 4x for a
 // full college meal-prep batch.
 const PORTION_PRESETS = [
-  { multiplier: 1, label: '1×', hint: 'Single' },
-  { multiplier: 2, label: '2×', hint: 'Double' },
-  { multiplier: 4, label: '4×', hint: 'College Batch' },
+  { multiplier: 1, label: '1×', hintKey: 'recipe.portionSingle' as const },
+  { multiplier: 2, label: '2×', hintKey: 'recipe.portionDouble' as const },
+  { multiplier: 4, label: '4×', hintKey: 'recipe.portionBatch' as const },
 ] as const;
 
 interface DialogState {
@@ -46,6 +47,7 @@ const emptyCookLogFields = (): CookLogFields => ({ cooked_at: todayISODate(), ra
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
 
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -121,7 +123,7 @@ export function RecipeDetail() {
 
   // 2. ACTION HANDLERS: The logic executed when a user clicks a button.
   const toggleFavorite = async () => {
-    if (!user || !id) return showToast('Please sign in to favorite recipes!');
+    if (!user || !id) return showToast(t('recipe.signInToFavorite'));
     if (favorite) {
       await db.favorites.delete(favorite.id);
       await supabase.from('favorites').delete().eq('id', favorite.id);
@@ -133,7 +135,7 @@ export function RecipeDetail() {
   };
 
   const handleAddPhoto = async (file: File) => {
-    if (!user || !id) return showToast('Please sign in to add photos!');
+    if (!user || !id) return showToast(t('recipe.signInToPhoto'));
     setUploadingPhoto(true);
     try {
       const ext = file.name.split('.').pop() || 'jpg';
@@ -170,7 +172,7 @@ export function RecipeDetail() {
   };
 
   const openLogDialog = () => {
-    if (!user) return showToast('Please sign in to log a cook!');
+    if (!user) return showToast(t('recipe.signInToLog'));
     setLogFields(emptyCookLogFields());
     setLogDialogOpen(true);
   };
@@ -514,7 +516,7 @@ export function RecipeDetail() {
                   onClick={() => setCookModeOpen(true)}
                   className="flex items-center gap-2 text-sm font-bold text-white bg-slate-900 px-4 py-2 min-h-[44px] rounded-lg hover:bg-slate-800 active:scale-95 transition-all"
                 >
-                  <Flame className="w-4 h-4 text-orange-400" /> Cook Mode
+                  <Flame className="w-4 h-4 text-orange-400" /> {t('recipe.cookMode')}
                 </button>
               )}
               {hasTranslation && (
@@ -532,7 +534,7 @@ export function RecipeDetail() {
                   className="flex items-center gap-2 text-sm font-semibold text-slate-600 bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200 transition-colors"
                 >
                   <ScanEye className="w-4 h-4" />
-                  {showScan ? 'Flip Back' : 'Verify Original'}
+                  {showScan ? t('recipe.backToRecipe') : t('recipe.verifyOriginal')}
                 </button>
               )}
             </div>
@@ -543,15 +545,15 @@ export function RecipeDetail() {
             front={
               <div className="grid md:grid-cols-3 gap-12">
                 <div className="md:col-span-1">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-4">Ingredients</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-4">{t('recipe.ingredients')}</h2>
 
                   {/* Portion & batch scaler: every quantity below rescales live. */}
                   <div className="flex gap-2 mb-6">
-                    {PORTION_PRESETS.map(({ multiplier: m, label, hint }) => (
+                    {PORTION_PRESETS.map(({ multiplier: m, label, hintKey }) => (
                       <button
                         key={m}
                         onClick={() => setMultiplier(m)}
-                        title={hint}
+                        title={t(hintKey)}
                         className={`flex-1 min-h-[44px] px-2 rounded-xl border text-center transition-all active:scale-95 ${
                           multiplier === m
                             ? 'bg-orange-600 border-orange-600 text-white shadow-sm'
@@ -560,7 +562,7 @@ export function RecipeDetail() {
                       >
                         <span className="block text-sm font-bold leading-tight">{label}</span>
                         <span className={`block text-[10px] font-medium leading-tight ${multiplier === m ? 'text-orange-100' : 'text-slate-400'}`}>
-                          {hint}
+                          {t(hintKey)}
                         </span>
                       </button>
                     ))}
@@ -577,7 +579,7 @@ export function RecipeDetail() {
                   </ul>
                 </div>
                 <div className="md:col-span-2">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-6">Instructions</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-6">{t('recipe.instructions')}</h2>
                   {instructionSteps.length > 0 ? (
                     <ol className="space-y-4 text-slate-700 list-decimal list-outside pl-5 marker:text-orange-500 marker:font-semibold">
                       {instructionSteps.map((step, i) => (
