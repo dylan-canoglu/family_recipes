@@ -9,7 +9,10 @@ export function Favorites() {
 
   // Query Dexie for the user's favorites, then fetch the corresponding recipes
   const favoriteRecipes = useLiveQuery(async () => {
-    if (!user) return null; // Not logged in
+    // Not logged in. Returning [] rather than null keeps the type
+    // `Recipe[] | undefined`, so the `undefined` check below is the single
+    // loading guard and the render path never has to null-check.
+    if (!user) return [];
     
     // 1. Get all favorite records for this user
     const userFavorites = await db.favorites.where({ user_id: user.id }).toArray();
