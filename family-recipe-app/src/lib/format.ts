@@ -86,18 +86,39 @@ export function promoteUnit(amount: number, unit: string): { amount: number; uni
   return { amount: amount / rule.per, unit: rule.to };
 }
 
-// English plurals, and only for a known list of countable ingredients.
+// Plurals, per language, and only for a known list of countable ingredients.
 //
-// This is deliberately not a general rule. Turkish does NOT pluralise a noun
-// after a numeral -- "2 soğan" is correct and "2 soğanlar" is wrong -- and
-// this vault is mostly French and Turkish, so a blanket "add an s" would
-// corrupt more lines than it fixed. Anything not listed is left exactly as
-// the recipe wrote it.
-const PLURALISABLE = new Set([
+// Deliberately not a general rule. Turkish does NOT pluralise a noun after a
+// numeral -- "2 soğan" is correct and "2 soğanlar" is wrong -- so it has no
+// list at all and its words fall through untouched.
+//
+// The word decides the language, rather than the caller passing one. The
+// lists are disjoint ("onion" vs "oignon"), so a lookup identifies the
+// language on its own -- which means this keeps working when the displayed
+// text is an original in one language while the interface is in another.
+const PLURALISABLE_EN = new Set([
   'onion', 'egg', 'clove', 'tomato', 'potato', 'carrot', 'apple', 'lemon',
   'lime', 'shallot', 'mushroom', 'sausage', 'fillet', 'slice', 'sprig',
   'stalk', 'cup', 'tablespoon', 'teaspoon', 'pinch', 'handful',
 ]);
+
+const PLURALISABLE_FR = new Set([
+  'oignon', 'œuf', 'oeuf', 'gousse', 'cuillère', 'cuiller', 'cuillerée',
+  'tomate', 'pomme', 'citron', 'carotte', 'tranche', 'pincée', 'branche',
+  'feuille', 'tasse', 'verre', 'morceau', 'échalote', 'echalote',
+  'champignon', 'poivron', 'courgette', 'aubergine', 'saucisse', 'filet',
+]);
+
+/**
+ * French plural of a single word: cuillère -> cuillères, morceau -> morceaux.
+ * Words already ending in s/x/z are invariable (une noix, deux noix).
+ */
+export function pluralizeWordFr(word: string): string {
+  if (/[sxz]$/i.test(word)) return word;
+  if (/eau$/i.test(word)) return `${word}x`;
+  if (/al$/i.test(word)) return word.replace(/al$/i, 'aux');
+  return `${word}s`;
+}
 
 /**
  * English plural of a single word: bunch -> bunches, tomato -> tomatoes,
@@ -112,11 +133,31 @@ export function pluralizeWord(word: string): string {
 
 function pluralizeItem(item: string, amount: number): string {
   if (amount <= 1) return item;
-  const match = item.match(/^(.*?)(\p{L}+)(\W*)$/u);
-  if (!match) return item;
-  const [, head, word, tail] = match;
-  if (!PLURALISABLE.has(word.toLowerCase())) return item;
-  return `${head}${pluralizeWord(word)}${tail}`;
+
+  // French puts the noun first ("cuillère à café de sel", "gousses d'ail"),
+  // English puts it last ("cloves garlic", "olive oil"). Trying both ends
+  // covers each without needing to know which language the line is in;
+  // whichever word is found in a list decides both the language and the rule.
+  const head = item.match(/^(\p{L}+)/u)?.[1];
+  const tail = item.match(/(\p{L}+)(\W*)$/u)?.[1];
+
+  for (const word of [head, tail]) {
+    if (!word) continue;
+    const lower = word.toLowerCase();
+    if (PLURALISABLE_FR.has(lower)) {
+      return replaceWordOnce(item, word, pluralizeWordFr(word));
+    }
+    if (PLURALISABLE_EN.has(lower)) {
+      return replaceWordOnce(item, word, pluralizeWord(word));
+    }
+  }
+  return item;
+}
+
+/** Replaces one whole-word occurrence, leaving the rest of the line intact. */
+function replaceWordOnce(text: string, word: string, replacement: string): string {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`(^|\\P{L})${escaped}(\\P{L}|$)`, 'u'), `$1${replacement}$2`);
 }
 
 // Scales an in-line "(3/4 dl)"-style restatement wherever it sits. The legacy

@@ -9,6 +9,7 @@ import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
 import { useI18n, type TranslationKey } from '../lib/i18n';
 import { translatedTitle } from '../lib/translation';
+import { requestRecipeTranslation } from '../lib/translateRequest';
 import { syncRecipeTranslations } from '../lib/sync';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -211,6 +212,10 @@ export function RecipeList() {
       } else {
         showToast('Recipe updated.');
       }
+      // The text changed, so any stored translation now describes the old
+      // recipe. Regenerating overwrites it; until it lands, the per-field
+      // resolver still shows whatever is current.
+      requestRecipeTranslation(editing.id, lang);
       setEditing(null);
     } finally {
       setSavingEdit(false);

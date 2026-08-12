@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { useT } from '../lib/i18n';
+import { useI18n } from '../lib/i18n';
+import { requestRecipeTranslation } from '../lib/translateRequest';
 import { HOUSEHOLD_ID } from '../lib/constants';
 import { pushRecipeToCloud } from '../lib/recipes';
 import { PlusCircle, Clock, ChefHat, Save, LogIn, Camera, PenLine } from 'lucide-react';
@@ -14,7 +15,7 @@ import { Toast } from '../components/Toast';
 
 export function AddRecipe() {
   const { user } = useAuth();
-  const t = useT();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +99,9 @@ export function AddRecipe() {
       if (strippedMetadata) {
         showToast('Saved — but run supabase-college-metadata.sql to sync the new metadata fields.');
       }
+      // Translate in the background: the recipe is already saved, so a failure
+      // here costs nothing but the translation.
+      requestRecipeTranslation(newId, lang);
       setScanFile(null);
       navigate(`/recipes/${newId}`);
     } catch (err) {
@@ -172,6 +176,7 @@ export function AddRecipe() {
       });
 
       // 4. Success! Redirect to the new recipe's page
+      requestRecipeTranslation(newId, lang);
       navigate(`/recipes/${newId}`);
 
     } catch (err: any) {
