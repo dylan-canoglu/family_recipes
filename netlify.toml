@@ -1,0 +1,46 @@
+# Netlify deploy config for the Family Recipe Vault.
+#
+# The React app lives in the family-recipe-app/ subdirectory, so `base` points
+# there and every other path in this file is relative to it.
+#
+# Set these in Netlify (Site configuration > Environment variables) before the
+# first deploy -- .env.local is gitignored, so the build has no other source
+# for them and src/lib/supabase.ts throws without them:
+#   VITE_SUPABASE_URL
+#   VITE_SUPABASE_ANON_KEY
+
+[build]
+  base = "family-recipe-app"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 8 needs a modern Node; Netlify's default image lags behind.
+  NODE_VERSION = "22"
+
+# Client-side routing: /recipes/:id and friends have no file on disk, so serve
+# the shell and let React Router resolve the path. Netlify only applies this
+# when no real file matches, so /sw.js and /manifest.webmanifest still win.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# The service worker filename is not content-hashed. If it gets cached, phones
+# keep running an old shell after a deploy, so force a revalidation every time.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Content-Type = "application/manifest+json"
+
+# Hashed build output, on the other hand, is safe to cache forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
