@@ -6,8 +6,9 @@ import {
   ChefHat, Search, Compass, Heart,
   LayoutDashboard, PlusCircle, LogIn, LogOut,
   Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays,
-  House as HomeIcon
+  House as HomeIcon, ShoppingCart, Refrigerator
 } from 'lucide-react';
+import { SyncStatusBadge } from './SyncStatusBadge';
 
 // `/` would match startsWith for every route, so it needs an exact test.
 const isRouteActive = (pathname: string, path: string) =>
@@ -28,6 +29,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Search Vault', path: '/recipes', icon: Search },
     { name: 'Discovery', path: '/discovery', icon: Compass },
     { name: 'Meal Planner', path: '/planner', icon: CalendarDays },
+    { name: 'Shopping List', path: '/shopping', icon: ShoppingCart },
+    { name: 'What Can I Make?', path: '/pantry', icon: Refrigerator },
     { name: 'Favorites', path: '/favorites', icon: Heart },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Add Recipe', path: '/add', icon: PlusCircle },
@@ -101,7 +104,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    // Zero-scroll shell: the window itself never scrolls. 100dvh (not 100vh)
+    // tracks the mobile browser chrome collapsing, and overflow-hidden pins
+    // header/nav/tab-bar while <main> below is the only scroll boundary.
+    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-slate-50 flex flex-col">
 
       {/* Mobile Header & Hamburger */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-header-safe pt-safe bg-white border-b border-slate-200 z-50 flex items-center justify-between px-4">
@@ -109,12 +115,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <ChefHat className="w-8 h-8" />
           <span className="font-bold text-xl">The Vault</span>
         </div>
-        {/* Opening the menu is the tab bar's "More" job now; this only closes it. */}
-        {isMobileMenuOpen && (
-          <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-600" title="Close menu">
-            <X className="w-6 h-6" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <SyncStatusBadge />
+          {/* Opening the menu is the tab bar's "More" job now; this only closes it. */}
+          {isMobileMenuOpen && (
+            <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-600" title="Close menu">
+              <X className="w-6 h-6" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -142,6 +151,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <ChefHat className="w-8 h-8 flex-shrink-0" />
             {isSidebarOpen && <span className="font-bold text-xl whitespace-nowrap">The Vault</span>}
           </Link>
+          {isSidebarOpen && <SyncStatusBadge />}
         </div>
 
         <div className="flex-1 overflow-y-auto py-4">
@@ -160,11 +170,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </button>
       </div>
 
-      {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 pt-header-safe md:pt-0 pb-tabbar-safe md:pb-0 ${
+      {/* Main Content Area -- the padding utilities keep the scroll region
+          clear of the fixed header and tab bar, and min-h-0 lets it actually
+          shrink inside the locked 100dvh flex column. */}
+      <div className={`flex-1 min-h-0 flex flex-col transition-all duration-300 pt-header-safe md:pt-0 pb-tabbar-safe md:pb-0 ${
         isSidebarOpen ? 'md:ml-64' : 'md:ml-20'
       }`}>
-        <main className="min-h-full">
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {children}
         </main>
       </div>

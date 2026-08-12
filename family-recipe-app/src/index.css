@@ -20,6 +20,31 @@
     /* Skips the 300ms double-tap-to-zoom wait on touch devices. */
     touch-action: manipulation;
   }
+
+  /* Touch ergonomics, only where fingers are the pointer. The ::after overlay
+     expands every button's hit area to at least 44x44 without moving a pixel
+     of visual layout (it's absolutely positioned, so flex rows ignore it) --
+     the small icon buttons keep their compact look but stop demanding
+     pixel-precise taps. */
+  @media (pointer: coarse) {
+    button {
+      position: relative;
+    }
+    button::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+    }
+    button:active,
+    a:active {
+      transform: scale(0.97);
+      transition: transform 75ms ease-out;
+    }
+  }
 }
 
 @layer utilities {

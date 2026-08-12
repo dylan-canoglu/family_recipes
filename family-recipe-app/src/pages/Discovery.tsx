@@ -131,7 +131,7 @@ export function Discovery() {
 
   if (!recipes || !stats || !myLogs) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-full flex items-center justify-center bg-slate-50">
         <p className="text-xl text-slate-600 animate-pulse">Reading the family's cooking history...</p>
       </div>
     );
@@ -181,7 +181,7 @@ export function Discovery() {
   const hasAnyActivity = familyCookCount > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-12">
+    <div className="min-h-full bg-slate-50 p-6 md:p-12">
       <div className="max-w-7xl mx-auto space-y-12">
 
         <div>

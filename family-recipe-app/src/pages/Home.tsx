@@ -201,7 +201,7 @@ export function Home() {
 
   if (!recipes || !lanes) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-full flex items-center justify-center bg-slate-50">
         <p className="text-xl text-slate-600 animate-pulse">Warming up the kitchen...</p>
       </div>
     );
@@ -211,7 +211,7 @@ export function Home() {
   const heroRecipe = heroPlanned?.recipe ?? suggestion?.recipe;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-5 md:p-12">
+    <div className="min-h-full bg-slate-50 p-5 md:p-12">
       <div className="max-w-5xl mx-auto space-y-10">
 
         <div>
