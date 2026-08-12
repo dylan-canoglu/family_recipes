@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { HOUSEHOLD_ID } from '../lib/constants';
-import { PlusCircle, Clock, ChefHat, Save } from 'lucide-react';
+import { PlusCircle, Clock, ChefHat, Save, LogIn } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 export function AddRecipe() {
@@ -86,6 +86,28 @@ export function AddRecipe() {
       setLoading(false);
     }
   };
+
+  // Match the other authenticated pages: prompt up front rather than letting
+  // someone fill in a whole recipe and only fail at submit.
+  if (!user) {
+    return (
+      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-orange-50 p-6 rounded-full mb-6">
+          <PlusCircle className="w-12 h-12 text-orange-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Sign in to add a recipe</h2>
+        <p className="text-slate-500 mb-8 max-w-md">
+          Contributions are tied to your account, so the family knows who added what.
+        </p>
+        <Link
+          to="/auth"
+          className="flex items-center gap-2 bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors shadow-sm"
+        >
+          <LogIn className="w-5 h-5" /> Sign In to the Vault
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full p-6 md:p-12">

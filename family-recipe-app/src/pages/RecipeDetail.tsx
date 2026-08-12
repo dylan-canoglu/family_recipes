@@ -360,7 +360,9 @@ export function RecipeDetail() {
 
   // Evaluate permissions based on Schema V3 rules
   const isGlobal = recipe.visibility === 'global';
-  const isOwner = recipe.owner_id === user?.id;
+  // Requires a signed-in user: without it a legacy recipe whose owner_id is
+  // undefined would match `undefined === user?.id` for a signed-out visitor.
+  const isOwner = !!user && recipe.owner_id === user.id;
   const isPersonal = recipe.visibility === 'personal' || !recipe.visibility;
   const hasTranslation = !!(recipe.instructions_en || (recipe.ingredients_en && recipe.ingredients_en.length > 0));
   const useOriginal = showOriginal || !hasTranslation;
@@ -393,7 +395,7 @@ export function RecipeDetail() {
         <PhotoGallery
           photos={photos}
           canDelete={(photo) => photo.user_id === user?.id}
-          onAdd={handleAddPhoto}
+          onAdd={user ? handleAddPhoto : undefined}
           onDelete={handleDeletePhoto}
           uploading={uploadingPhoto}
         />
@@ -417,8 +419,11 @@ export function RecipeDetail() {
             {/* 5. DYNAMIC UI: Action Buttons based on state and ownership */}
             <div className="flex items-center gap-2">
 
-              {/* Global Recipe Tools: Hide, Edit Request, Delete Request */}
-              {isGlobal && (
+              {/* Global Recipe Tools: Hide, Edit Request, Delete Request.
+                  Signed-out visitors can read the vault but not act on it, and
+                  every one of these handlers no-ops without a user -- showing
+                  them read as editing rights nobody actually had. */}
+              {user && isGlobal && (
                 <>
                   {!hiddenRecord && (
                     <button onClick={handleHide} title="Hide this recipe" className="p-3 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all">
@@ -446,10 +451,11 @@ export function RecipeDetail() {
                 </>
               )}
 
-              {/* Universal Tool: Favorite Button */}
-              <button onClick={toggleFavorite} className={`p-3 rounded-full transition-all ${favorite ? 'bg-rose-50 text-rose-500 hover:bg-rose-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
-                <Heart className={`w-6 h-6 ${favorite ? 'fill-current' : ''}`} />
-              </button>
+              {user && (
+                <button onClick={toggleFavorite} className={`p-3 rounded-full transition-all ${favorite ? 'bg-rose-50 text-rose-500 hover:bg-rose-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                  <Heart className={`w-6 h-6 ${favorite ? 'fill-current' : ''}`} />
+                </button>
+              )}
             </div>
           </div>
 
