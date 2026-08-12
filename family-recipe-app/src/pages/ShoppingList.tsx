@@ -6,7 +6,7 @@ import { getVisibleRecipes } from '../lib/recipes';
 import { syncMealPlan, syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
 import { buildGroceryList } from '../lib/grocery';
-import { ShoppingCart, Plus, X, Search, CalendarDays, Trash2, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, Plus, X, Search, CalendarDays, Trash2, CheckCircle2, Share2, Check } from 'lucide-react';
 
 // One-tap smart grocery aggregator: pick recipes (from here, from the
 // catalog's Shop mode, or straight from the week's meal plan) and get a
@@ -49,6 +49,9 @@ export function ShoppingList() {
   const [checked, setChecked] = useState<Record<string, boolean>>(() => loadStored().checked);
   const [search, setSearch] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Momentary "Copied" confirmation on the share button itself, so the
+  // desktop fallback doesn't silently appear to do nothing.
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('ids')) {
@@ -102,6 +105,40 @@ export function ShoppingList() {
 
   const checkedCount = groceryItems.filter((item) => checked[item.key]).length;
 
+  // Plain text, because the destination is whatever the shopper actually uses
+  // -- Messages, WhatsApp, Notes. Already-in-the-cart items are ticked rather
+  // than dropped, so the person at home can see the whole list.
+  const asPlainText = () => {
+    const lines = groceryItems.map((item) => `${checked[item.key] ? '[x]' : '[ ]'} ${item.label}`);
+    const from = selectedRecipes.map((r) => r.title).join(', ');
+    return [`Shopping list (${groceryItems.length} items)`, from && `For: ${from}`, '', ...lines]
+      .filter((l) => l !== undefined && l !== '')
+      .join('\n');
+  };
+
+  const shareList = async () => {
+    const text = asPlainText();
+    // navigator.share is the native sheet on iOS/Android and is the whole
+    // point on a phone; it must be called straight from the tap or Safari
+    // rejects it. Clipboard is the desktop fallback.
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Shopping List', text });
+        return;
+      }
+    } catch {
+      // Cancelled or blocked -- fall through to copying instead.
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard needs a secure context; nothing useful left to try.
+      console.error('Could not copy the shopping list.');
+    }
+  };
+
   const pickerMatches = useMemo(() => {
     const term = search.trim().toLowerCase();
     const pool = (recipes ?? []).filter((r) => !selectedIds.includes(r.id));
@@ -113,8 +150,22 @@ export function ShoppingList() {
     <div className="min-h-full bg-slate-50 p-4 md:p-12">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-4 mb-2">
-          <ShoppingCart className="w-10 h-10 text-orange-600" />
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900">Shopping List</h1>
+          <ShoppingCart className="w-10 h-10 text-orange-600 shrink-0" />
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 flex-1 min-w-0">Shopping List</h1>
+          {groceryItems.length > 0 && (
+            <button
+              onClick={shareList}
+              className={`flex items-center gap-2 px-4 min-h-[44px] rounded-xl font-semibold border transition-all active:scale-95 shrink-0 ${
+                copied
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-white border-slate-200 text-slate-700 hover:border-orange-300'
+              }`}
+              title="Send this list to Messages, WhatsApp or Notes"
+            >
+              {copied ? <Check className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
+              <span className="hidden sm:inline">{copied ? 'Copied' : 'Share'}</span>
+            </button>
+          )}
         </div>
         <p className="text-slate-600 mb-6">
           Pick recipes and get one consolidated list — same ingredients across recipes are merged.
