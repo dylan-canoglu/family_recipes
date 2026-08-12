@@ -42,8 +42,8 @@ export function EditRecipeDialog({
 
         <div className="space-y-4 overflow-y-auto pr-1">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Title</label>
-            <input
+            <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="editrecipedialog-title">Title</label>
+            <input id="editrecipedialog-title"
               type="text" value={fields.title} onChange={set('title')}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-colors"
             />
@@ -58,15 +58,15 @@ export function EditRecipeDialog({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Instructions</label>
-            <textarea
+            <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="editrecipedialog-instructions">Instructions</label>
+            <textarea id="editrecipedialog-instructions"
               rows={5} value={fields.instructions} onChange={set('instructions')}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-colors"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
-            <textarea
+            <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="editrecipedialog-notes">Notes</label>
+            <textarea id="editrecipedialog-notes"
               rows={3} value={fields.notes} onChange={set('notes')}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-colors"
             />

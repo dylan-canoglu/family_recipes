@@ -266,8 +266,8 @@ export function AddRecipe() {
             </h3>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Recipe Title *</label>
-              <input
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-recipe-title">Recipe Title *</label>
+              <input id="addrecipe-recipe-title"
                 type="text" required value={title} onChange={e => setTitle(e.target.value)}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-colors"
                 placeholder="e.g., Grand-mère's Quiche Lorraine"
@@ -276,8 +276,8 @@ export function AddRecipe() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Dish Type *</label>
-                <select
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-dish-type">Dish Type *</label>
+                <select id="addrecipe-dish-type"
                   value={dishType} onChange={e => setDishType(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                 >
@@ -288,8 +288,8 @@ export function AddRecipe() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Complexity *</label>
-                <select
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-complexity">Complexity *</label>
+                <select id="addrecipe-complexity"
                   value={complexity} onChange={e => setComplexity(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                 >
@@ -300,8 +300,8 @@ export function AddRecipe() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Cuisine</label>
-                <input
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-cuisine">Cuisine</label>
+                <input id="addrecipe-cuisine"
                   type="text" value={cuisine} onChange={e => setCuisine(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                   placeholder="e.g., French, Turkish"
@@ -317,22 +317,22 @@ export function AddRecipe() {
             </h3>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Prep Time (min)</label>
-                <input
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-prep-time">Prep Time (min)</label>
+                <input id="addrecipe-prep-time"
                   type="number" min="0" required value={prepTime} onChange={e => setPrepTime(Number(e.target.value))}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Cook Time (min)</label>
-                <input
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-cook-time">Cook Time (min)</label>
+                <input id="addrecipe-cook-time"
                   type="number" min="0" required value={cookTime} onChange={e => setCookTime(Number(e.target.value))}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Servings</label>
-                <input
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-servings">Servings</label>
+                <input id="addrecipe-servings"
                   type="number" min="1" required value={servings} onChange={e => setServings(Number(e.target.value))}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                 />
@@ -354,8 +354,8 @@ export function AddRecipe() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Instructions *</label>
-              <textarea
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-instructions">Instructions *</label>
+              <textarea id="addrecipe-instructions"
                 required rows={8} value={instructions} onChange={e => setInstructions(e.target.value)}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                 placeholder="1. Preheat the oven to 180°C...&#10;2. Whisk the eggs..."
@@ -363,8 +363,8 @@ export function AddRecipe() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Family Notes (Optional)</label>
-              <textarea
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="addrecipe-family-notes">Family Notes (Optional)</label>
+              <textarea id="addrecipe-family-notes"
                 rows={3} value={notes} onChange={e => setNotes(e.target.value)}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50"
                 placeholder="Ergun always adds an extra pinch of black pepper..."

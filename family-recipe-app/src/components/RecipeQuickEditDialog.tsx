@@ -55,45 +55,45 @@ export function RecipeQuickEditDialog({ recipe, saving, onSave, onCancel }: Reci
 
         <div className="space-y-4 overflow-y-auto pr-1">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Title</label>
-            <input type="text" value={fields.title} onChange={set('title')} className={inputClass} />
+            <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-title">Title</label>
+            <input id="recipequickeditdialog-title" type="text" value={fields.title} onChange={set('title')} className={inputClass} />
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Dish Type</label>
-              <select value={fields.dishType} onChange={set('dishType')} className={inputClass}>
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-dish-type">Dish Type</label>
+              <select id="recipequickeditdialog-dish-type" value={fields.dishType} onChange={set('dishType')} className={inputClass}>
                 {['Main Dish', 'Appetizer', 'Dessert', 'Pastry', 'Soup', 'Sauce', 'Side', 'Breakfast', 'Drink'].map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Complexity</label>
-              <select value={fields.complexity} onChange={set('complexity')} className={inputClass}>
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-complexity">Complexity</label>
+              <select id="recipequickeditdialog-complexity" value={fields.complexity} onChange={set('complexity')} className={inputClass}>
                 <option value="Easy">Easy</option>
                 <option value="Medium">Medium</option>
                 <option value="Hard">Hard</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Cuisine</label>
-              <input type="text" value={fields.cuisine} onChange={set('cuisine')} className={inputClass} />
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-cuisine">Cuisine</label>
+              <input id="recipequickeditdialog-cuisine" type="text" value={fields.cuisine} onChange={set('cuisine')} className={inputClass} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Prep (min)</label>
-              <input type="number" min={0} value={fields.prepTime} onChange={set('prepTime')} className={inputClass} />
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-prep">Prep (min)</label>
+              <input id="recipequickeditdialog-prep" type="number" min={0} value={fields.prepTime} onChange={set('prepTime')} className={inputClass} />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Cook (min)</label>
-              <input type="number" min={0} value={fields.cookTime} onChange={set('cookTime')} className={inputClass} />
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-cook">Cook (min)</label>
+              <input id="recipequickeditdialog-cook" type="number" min={0} value={fields.cookTime} onChange={set('cookTime')} className={inputClass} />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Servings</label>
-              <input type="number" min={1} value={fields.servings} onChange={set('servings')} className={inputClass} />
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-servings">Servings</label>
+              <input id="recipequickeditdialog-servings" type="number" min={1} value={fields.servings} onChange={set('servings')} className={inputClass} />
             </div>
           </div>
 
@@ -105,13 +105,13 @@ export function RecipeQuickEditDialog({ recipe, saving, onSave, onCancel }: Reci
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Instructions</label>
-            <textarea rows={6} value={fields.instructions} onChange={set('instructions')} className={inputClass} />
+            <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-instructions">Instructions</label>
+            <textarea id="recipequickeditdialog-instructions" rows={6} value={fields.instructions} onChange={set('instructions')} className={inputClass} />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Notes</label>
-            <textarea rows={2} value={fields.notes} onChange={set('notes')} className={inputClass} />
+            <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="recipequickeditdialog-notes">Notes</label>
+            <textarea id="recipequickeditdialog-notes" rows={2} value={fields.notes} onChange={set('notes')} className={inputClass} />
           </div>
 
           <div className="pt-2 border-t border-slate-100 space-y-3">

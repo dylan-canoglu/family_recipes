@@ -39,8 +39,8 @@ export function LogCookDialog({ open, fields, onChange, onSave, onCancel, saving
         </div>
         <p className="text-slate-600 text-sm mb-5">Record that you made this dish, and how it turned out.</p>
 
-        <label className="block text-sm font-semibold text-slate-700 mb-1">When did you cook it?</label>
-        <input
+        <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="logcookdialog-when-did-you-cook-it">When did you cook it?</label>
+        <input id="logcookdialog-when-did-you-cook-it"
           type="date"
           value={fields.cooked_at}
           max={todayLocalISO()}

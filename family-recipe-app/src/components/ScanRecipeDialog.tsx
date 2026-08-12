@@ -192,8 +192,8 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
                 fields rather than hidden in a menu. */}
             <div className="flex items-center gap-2">
               <Languages className="w-4 h-4 text-slate-400 shrink-0" />
-              <label className="text-sm font-semibold text-slate-700 shrink-0">Written in</label>
-              <select
+              <label className="text-sm font-semibold text-slate-700 shrink-0" htmlFor="scanrecipedialog-written-in">Written in</label>
+              <select id="scanrecipedialog-written-in"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as OcrLanguage)}
                 disabled={phase === 'running'}
@@ -224,45 +224,45 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Title *</label>
-              <input type="text" value={fields.title} onChange={set('title')} className={inputClass} placeholder="e.g., Anne's Köfte" />
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-title">Title *</label>
+              <input id="scanrecipedialog-title" type="text" value={fields.title} onChange={set('title')} className={inputClass} placeholder="e.g., Anne's Köfte" />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Prep (min)</label>
-                <input type="number" min={0} value={fields.prepTime} onChange={set('prepTime')} className={inputClass} />
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-prep">Prep (min)</label>
+                <input id="scanrecipedialog-prep" type="number" min={0} value={fields.prepTime} onChange={set('prepTime')} className={inputClass} />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Cook (min)</label>
-                <input type="number" min={0} value={fields.cookTime} onChange={set('cookTime')} className={inputClass} />
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-cook">Cook (min)</label>
+                <input id="scanrecipedialog-cook" type="number" min={0} value={fields.cookTime} onChange={set('cookTime')} className={inputClass} />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Servings</label>
-                <input type="number" min={1} value={fields.servings} onChange={set('servings')} className={inputClass} />
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-servings">Servings</label>
+                <input id="scanrecipedialog-servings" type="number" min={1} value={fields.servings} onChange={set('servings')} className={inputClass} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Dish Type</label>
-                <select value={fields.dishType} onChange={set('dishType')} className={inputClass}>
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-dish-type">Dish Type</label>
+                <select id="scanrecipedialog-dish-type" value={fields.dishType} onChange={set('dishType')} className={inputClass}>
                   {['Main Dish', 'Appetizer', 'Dessert', 'Pastry', 'Soup', 'Sauce', 'Side', 'Breakfast', 'Drink'].map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Complexity</label>
-                <select value={fields.complexity} onChange={set('complexity')} className={inputClass}>
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-complexity">Complexity</label>
+                <select id="scanrecipedialog-complexity" value={fields.complexity} onChange={set('complexity')} className={inputClass}>
                   <option value="Easy">Easy</option>
                   <option value="Medium">Medium</option>
                   <option value="Hard">Hard</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Cuisine</label>
-                <input type="text" value={fields.cuisine} onChange={set('cuisine')} className={inputClass} placeholder="Turkish, French…" />
+                <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-cuisine">Cuisine</label>
+                <input id="scanrecipedialog-cuisine" type="text" value={fields.cuisine} onChange={set('cuisine')} className={inputClass} placeholder="Turkish, French…" />
               </div>
             </div>
 
@@ -274,13 +274,13 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Instructions *</label>
-              <textarea rows={8} value={fields.instructions} onChange={set('instructions')} className={inputClass} />
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-instructions">Instructions *</label>
+              <textarea id="scanrecipedialog-instructions" rows={8} value={fields.instructions} onChange={set('instructions')} className={inputClass} />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Family Notes</label>
-              <textarea rows={2} value={fields.notes} onChange={set('notes')} className={inputClass} />
+              <label className="block text-sm font-semibold text-slate-700 mb-1" htmlFor="scanrecipedialog-family-notes">Family Notes</label>
+              <textarea id="scanrecipedialog-family-notes" rows={2} value={fields.notes} onChange={set('notes')} className={inputClass} />
             </div>
 
             <div className="space-y-2 pt-2 border-t border-slate-100">
