@@ -5,8 +5,13 @@ import { supabase } from '../lib/supabase';
 import {
   ChefHat, Search, Compass, Heart,
   LayoutDashboard, PlusCircle, LogIn, LogOut,
-  Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays
+  Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays,
+  House as HomeIcon
 } from 'lucide-react';
+
+// `/` would match startsWith for every route, so it needs an exact test.
+const isRouteActive = (pathname: string, path: string) =>
+  path === '/' ? pathname === '/' : pathname.startsWith(path);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin } = useAuth();
@@ -19,6 +24,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navItems = [
+    { name: 'Home', path: '/', icon: HomeIcon },
     { name: 'Search Vault', path: '/recipes', icon: Search },
     { name: 'Discovery', path: '/discovery', icon: Compass },
     { name: 'Meal Planner', path: '/planner', icon: CalendarDays },
@@ -61,7 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const NavLinks = () => (
     <nav className="flex flex-col gap-2 p-4">
       {navItems.map((item) => {
-        const isActive = location.pathname.startsWith(item.path);
+        const isActive = isRouteActive(location.pathname, item.path);
         const Icon = item.icon;
         return (
           <Link
@@ -85,24 +91,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </nav>
   );
 
+  // The four destinations worth a permanent thumb target on a phone. "More"
+  // opens the existing overlay, which already lists everything else along with
+  // the account controls.
+  const tabs = [
+    { name: 'Home', path: '/', icon: HomeIcon },
+    { name: 'Vault', path: '/recipes', icon: Search },
+    { name: 'Planner', path: '/planner', icon: CalendarDays },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      
+
       {/* Mobile Header & Hamburger */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-header-safe pt-safe bg-white border-b border-slate-200 z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2 text-orange-600">
           <ChefHat className="w-8 h-8" />
           <span className="font-bold text-xl">The Vault</span>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-600">
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        {/* Opening the menu is the tab bar's "More" job now; this only closes it. */}
+        {isMobileMenuOpen && (
+          <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-600" title="Close menu">
+            <X className="w-6 h-6" />
+          </button>
+        )}
       </div>
 
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="absolute top-header-safe left-0 bottom-0 w-64 bg-white shadow-xl pb-safe flex flex-col" onClick={e => e.stopPropagation()}>
+          {/* pb-tabbar-safe keeps the account controls clear of the tab bar,
+              which sits above this overlay. */}
+          <div className="absolute top-header-safe left-0 bottom-0 w-64 bg-white shadow-xl pb-tabbar-safe flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex-1 overflow-y-auto">
               <NavLinks />
             </div>
@@ -141,13 +161,45 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-300 pt-header-safe md:pt-0 pb-safe ${
+      <div className={`flex-1 transition-all duration-300 pt-header-safe md:pt-0 pb-tabbar-safe md:pb-0 ${
         isSidebarOpen ? 'md:ml-64' : 'md:ml-20'
       }`}>
         <main className="min-h-full">
           {children}
         </main>
       </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 pb-safe">
+        <div className="h-16 flex items-stretch">
+          {tabs.map((tab) => {
+            const isActive = isRouteActive(location.pathname, tab.path);
+            const Icon = tab.icon;
+            return (
+              <Link
+                key={tab.name}
+                to={tab.path}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+                  isActive ? 'text-orange-600' : 'text-slate-400'
+                }`}
+              >
+                <Icon className={`w-6 h-6 ${isActive ? 'stroke-[2.5]' : ''}`} />
+                <span className="text-[11px] font-semibold">{tab.name}</span>
+              </Link>
+            );
+          })}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${
+              isMobileMenuOpen ? 'text-orange-600' : 'text-slate-400'
+            }`}
+          >
+            <Menu className="w-6 h-6" />
+            <span className="text-[11px] font-semibold">More</span>
+          </button>
+        </div>
+      </nav>
 
     </div>
   );

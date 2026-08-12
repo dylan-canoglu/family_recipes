@@ -48,4 +48,10 @@
   .top-header-safe {
     top: calc(4rem + env(safe-area-inset-top, 0px));
   }
+
+  /* Clears the mobile tab bar (h-16) plus the iPhone home indicator, so the
+     last row of content is never hidden behind it. */
+  .pb-tabbar-safe {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
 }
