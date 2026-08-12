@@ -10,6 +10,10 @@ export default defineConfig({
       // The vault is meant to be opened in a kitchen; a stale shell after a
       // deploy is worse than a reload, so take updates as soon as they land.
       registerType: 'autoUpdate',
+      // main.tsx registers the worker through virtual:pwa-register so it can
+      // reload the page when a new one takes over; the auto-injected
+      // registerSW.js script would register a second time.
+      injectRegister: null,
       includeAssets: ['app-icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'The Family Recipe Vault',
