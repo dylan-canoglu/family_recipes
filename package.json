@@ -6,7 +6,8 @@
   "main": "seed.js",
   "scripts": {
     "seed": "node seed.js",
-    "translate": "node scripts/translate-recipes.mjs"
+    "translate": "node scripts/translate-recipes.mjs",
+    "retranscribe": "node scripts/retranscribe-recipes.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
