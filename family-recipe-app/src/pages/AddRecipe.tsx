@@ -1,17 +1,110 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { HOUSEHOLD_ID } from '../lib/constants';
-import { PlusCircle, Clock, ChefHat, Save, LogIn } from 'lucide-react';
+import { pushRecipeToCloud } from '../lib/recipes';
+import { PlusCircle, Clock, ChefHat, Save, LogIn, Camera } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { ScanRecipeDialog } from '../components/ScanRecipeDialog';
+import { type ScanDraftFields } from '../lib/recipeDraft';
+import { Toast } from '../components/Toast';
 
 export function AddRecipe() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Scan-and-review path: pick/take a photo, correct the OCR draft, save.
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const [scanFile, setScanFile] = useState<File | null>(null);
+  const [scanSaving, setScanSaving] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleScanSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    // Reset so re-picking the same photo re-triggers onChange.
+    e.target.value = '';
+    if (file) setScanFile(file);
+  };
+
+  const handleScanSave = async (fields: ScanDraftFields) => {
+    if (!user || !scanFile) return;
+    setScanSaving(true);
+    setError(null);
+    try {
+      const newId = uuidv4();
+
+      // The scan itself is archival: it becomes image_path, the "Verify
+      // Original" face of the recipe -- NOT a display thumbnail (those come
+      // from recipe_photos of the finished dish).
+      const ext = scanFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+      let scanUrl = '';
+      const storagePath = `scans/${newId}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('recipe-images').upload(storagePath, scanFile);
+      if (!uploadError) {
+        scanUrl = supabase.storage.from('recipe-images').getPublicUrl(storagePath).data.publicUrl;
+      } else {
+        console.error('Scan upload failed:', uploadError);
+      }
+
+      const tags = fields.tags.split(',').map((t) => t.trim()).filter((t) => t !== '');
+      const baseRecipe = {
+        id: newId,
+        household_id: HOUSEHOLD_ID,
+        title: fields.title.trim(),
+        cuisine: fields.cuisine.trim() || null,
+        dish_type: fields.dishType,
+        complexity: fields.complexity,
+        prep_time_min: Number(fields.prepTime) || 0,
+        cook_time_min: Number(fields.cookTime) || 0,
+        base_servings: Number(fields.servings) || 1,
+        ingredients: fields.ingredients.split('\n').map((i) => i.trim()).filter((i) => i !== ''),
+        instructions: fields.instructions,
+        notes: fields.notes,
+        image_path: scanUrl,
+        source_type: 'family' as const,
+        source_url: '',
+        owner_id: user.id,
+        visibility: 'personal' as const,
+        deleted_at: null,
+        is_main_dish: fields.isMainDish,
+        college_staple: fields.collegeStaple,
+        meal_prep_friendly: fields.mealPrepFriendly,
+        tags,
+      };
+
+      // total_time_min is GENERATED ALWAYS in Supabase, so it is omitted from
+      // the cloud insert and computed locally for Dexie (same as the form path).
+      const { error: cloudError, strippedMetadata } = await pushRecipeToCloud(baseRecipe);
+      if (cloudError) throw cloudError;
+
+      await db.recipes.put({
+        ...baseRecipe,
+        total_time_min: (Number(fields.prepTime) || 0) + (Number(fields.cookTime) || 0),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      if (strippedMetadata) {
+        showToast('Saved — but run supabase-college-metadata.sql to sync the new metadata fields.');
+      }
+      setScanFile(null);
+      navigate(`/recipes/${newId}`);
+    } catch (err) {
+      console.error(err);
+      showToast(err instanceof Error ? err.message : 'Failed to save the scanned recipe.');
+    } finally {
+      setScanSaving(false);
+    }
+  };
 
   // Form State
   const [title, setTitle] = useState('');
@@ -122,6 +215,28 @@ export function AddRecipe() {
             <h1 className="text-3xl font-bold text-slate-900">Add New Recipe</h1>
             <p className="text-orange-700 mt-1">Contribute a new dish to the family vault.</p>
           </div>
+        </div>
+
+        {/* Primary path: photograph a notebook page and review the OCR draft.
+            The long form below stays as the manual fallback. */}
+        <div className="p-8 pb-0">
+          <input
+            ref={scanInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleScanSelected}
+          />
+          <button
+            type="button"
+            onClick={() => scanInputRef.current?.click()}
+            className="w-full flex items-center justify-center gap-3 bg-orange-600 text-white px-6 py-4 min-h-[44px] rounded-xl font-bold text-lg hover:bg-orange-700 active:scale-[0.98] transition-all shadow-sm"
+          >
+            <Camera className="w-6 h-6" /> 📷 Scan / Upload Recipe Picture
+          </button>
+          <p className="text-center text-sm text-slate-400 mt-3">
+            Snap a notebook page — the text is read automatically and you correct it before saving. Or type it in below.
+          </p>
         </div>
 
         {/* Form */}
@@ -256,6 +371,14 @@ export function AddRecipe() {
           </div>
         </form>
       </div>
+
+      <ScanRecipeDialog
+        file={scanFile}
+        saving={scanSaving}
+        onSave={handleScanSave}
+        onCancel={() => setScanFile(null)}
+      />
+      <Toast message={toast} />
     </div>
   );
 }
