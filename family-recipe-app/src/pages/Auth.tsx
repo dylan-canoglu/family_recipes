@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ChefHat, Mail, Lock } from 'lucide-react';
+import { Toast } from '../components/Toast';
 
 export function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -9,6 +10,7 @@ export function Auth() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -25,10 +27,10 @@ export function Auth() {
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        alert('Success! Please check your email to verify your account.');
+        setToast('Success! Check your email to verify your account.');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during authentication.');
     } finally {
       setLoading(false);
     }
@@ -104,6 +106,7 @@ export function Auth() {
           </button>
         </div>
       </div>
+      <Toast message={toast} />
     </div>
   );
 }
