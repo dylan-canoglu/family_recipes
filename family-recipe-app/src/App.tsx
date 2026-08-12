@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './lib/AuthContext';
 import { Layout } from './components/Layout';
 import { RecipeList } from './pages/RecipeList';
@@ -10,6 +10,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
 import { Discovery } from './pages/Discovery';
 import { MealPlanner } from './pages/MealPlanner';
+import { Home } from './pages/Home';
 
 function App() {
   return (
@@ -20,7 +21,7 @@ function App() {
           <Route path="/auth" element={<Auth />} />
           
           {/* Main App Routes (Wrapped in Layout) */}
-          <Route path="/" element={<Layout><Navigate to="/recipes" replace /></Layout>} />
+          <Route path="/" element={<Layout><Home /></Layout>} />
           
           <Route path="/recipes" element={<Layout><RecipeList /></Layout>} />
           <Route path="/recipes/:id" element={<Layout><RecipeDetail /></Layout>} />

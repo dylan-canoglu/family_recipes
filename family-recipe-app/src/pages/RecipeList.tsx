@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getVisibleRecipes } from '../lib/recipes';
 import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
@@ -8,9 +8,19 @@ import { ChefHat, Clock, Search } from 'lucide-react';
 
 export function RecipeList() {
   const { user } = useAuth();
+  // Home's lane headers deep-link here pre-filtered, e.g. /recipes?dish=Soup.
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterDishType, setFilterDishType] = useState('');
+  const [filterDishType, setFilterDishType] = useState(searchParams.get('dish') ?? '');
   const [filterComplexity, setFilterComplexity] = useState('');
+
+  // Keep the URL in step so the filtered view can be shared or reloaded.
+  const changeDishType = (value: string) => {
+    setFilterDishType(value);
+    if (value) searchParams.set('dish', value);
+    else searchParams.delete('dish');
+    setSearchParams(searchParams, { replace: true });
+  };
 
   // 1. Query the LOCAL database safely
   const recipes = useLiveQuery(async () => {
@@ -68,7 +78,7 @@ export function RecipeList() {
           <select 
             className="border border-slate-200 rounded-lg px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             value={filterDishType}
-            onChange={(e) => setFilterDishType(e.target.value)}
+            onChange={(e) => changeDishType(e.target.value)}
           >
             <option value="">All Dish Types</option>
             <option value="Main Dish">Main Dish</option>
