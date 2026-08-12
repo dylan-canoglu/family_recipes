@@ -11,8 +11,14 @@ import { Admin } from './pages/Admin';
 import { Discovery } from './pages/Discovery';
 import { MealPlanner } from './pages/MealPlanner';
 import { Home } from './pages/Home';
+import { ConfigError } from './pages/ConfigError';
+import { isSupabaseConfigured, missingSupabaseVars } from './lib/supabase';
 
 function App() {
+  // Nothing in the app works without credentials, and every route would fail
+  // in a different confusing way. Say so once, up front.
+  if (!isSupabaseConfigured) return <ConfigError missing={missingSupabaseVars} />;
+
   return (
     <AuthProvider>
       <BrowserRouter>
