@@ -6,16 +6,29 @@ import {
   ChefHat, Search, Compass, Heart,
   LayoutDashboard, PlusCircle, LogIn, LogOut,
   Menu, X, ChevronLeft, ChevronRight, ShieldCheck, CalendarDays,
-  House as HomeIcon, ShoppingCart, Refrigerator
+  House as HomeIcon, ShoppingCart, Refrigerator, Eye
 } from 'lucide-react';
 import { SyncStatusBadge } from './SyncStatusBadge';
+
+// Guests can reach every read-only screen, so the only honest place to say
+// so is somewhere always visible rather than on the pages that happen to
+// refuse a write.
+const GuestChip = () => (
+  <span
+    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold"
+    title="Browsing read-only. Sign in to save anything."
+  >
+    <Eye className="w-3.5 h-3.5" />
+    Guest
+  </span>
+);
 
 // `/` would match startsWith for every route, so it needs an exact test.
 const isRouteActive = (pathname: string, path: string) =>
   path === '/' ? pathname === '/' : pathname.startsWith(path);
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isGuest, exitGuestMode } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Desktop collapse state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile overlay state
@@ -55,14 +68,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       ) : (
-        <Link
-          to="/auth"
-          onClick={() => setIsMobileMenuOpen(false)}
-          className={`flex items-center gap-3 p-3 rounded-xl text-orange-600 bg-orange-50 hover:bg-orange-100 transition-all w-full font-semibold ${!showLabels && 'justify-center'}`}
-        >
-          <LogIn className="w-5 h-5 flex-shrink-0" />
-          {showLabels && <span>Sign In</span>}
-        </Link>
+        <div className={`flex flex-col gap-2 ${!showLabels && 'items-center'}`}>
+          {isGuest && showLabels && (
+            <p className="text-xs text-slate-400 mb-1">
+              Browsing read-only as a guest. Sign in to favorite, plan and add recipes.
+            </p>
+          )}
+          <Link
+            to="/auth"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={`flex items-center gap-3 p-3 rounded-xl text-orange-600 bg-orange-50 hover:bg-orange-100 transition-all w-full font-semibold ${!showLabels && 'justify-center'}`}
+          >
+            <LogIn className="w-5 h-5 flex-shrink-0" />
+            {showLabels && <span>Sign In</span>}
+          </Link>
+          {isGuest && showLabels && (
+            <button
+              onClick={() => {
+                exitGuestMode();
+                setIsMobileMenuOpen(false);
+              }}
+              className="text-xs text-slate-400 hover:text-slate-600 transition-colors p-1 text-left"
+            >
+              Leave guest mode
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -116,6 +147,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <span className="font-bold text-xl">The Vault</span>
         </div>
         <div className="flex items-center gap-2">
+          {isGuest && <GuestChip />}
           <SyncStatusBadge />
           {/* Opening the menu is the tab bar's "More" job now; this only closes it. */}
           {isMobileMenuOpen && (
@@ -151,7 +183,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <ChefHat className="w-8 h-8 flex-shrink-0" />
             {isSidebarOpen && <span className="font-bold text-xl whitespace-nowrap">The Vault</span>}
           </Link>
-          {isSidebarOpen && <SyncStatusBadge />}
+          {isSidebarOpen && (
+            <div className="flex items-center gap-2">
+              {isGuest && <GuestChip />}
+              <SyncStatusBadge />
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto py-4">

@@ -123,8 +123,13 @@ export function Discovery() {
     return (
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         <Compass className="w-12 h-12 text-slate-300 mb-4" />
-        <h2 className="text-2xl font-bold text-slate-900">Sign in to explore the vault</h2>
-        <p className="text-slate-500 mt-2">Discovery is built from what your family has actually cooked.</p>
+        {/* Not "sign in to explore the vault" -- guests can browse every
+            recipe. What needs an account is the cooking history this page
+            is built from. */}
+        <h2 className="text-2xl font-bold text-slate-900">Sign in for Discovery</h2>
+        <p className="text-slate-500 mt-2">
+          These picks come from what your family has actually cooked and rated.
+        </p>
       </div>
     );
   }

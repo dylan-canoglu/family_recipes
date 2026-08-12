@@ -36,7 +36,7 @@ const toISODate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 export function ShoppingList() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL ids (arriving from the catalog's Shop mode) merge into the stored
@@ -55,7 +55,7 @@ export function ShoppingList() {
       searchParams.delete('ids');
       setSearchParams(searchParams, { replace: true });
     }
-    syncRecipes();
+    if (user || isGuest) syncRecipes();
     if (user) syncMealPlan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -65,7 +65,9 @@ export function ShoppingList() {
   }, [selectedIds, checked]);
 
   const recipes = useLiveQuery(() => getVisibleRecipes(user?.id), [user]);
-  const planEntries = useLiveQuery(() => db.meal_plan.toArray(), []);
+  // See Home: the local meal plan outlives a sign-out, and this page is one
+  // of the screens a guest can reach.
+  const planEntries = useLiveQuery(() => (user ? db.meal_plan.toArray() : []), [user]);
 
   const byId = useMemo(() => new Map((recipes ?? []).map((r) => [r.id, r])), [recipes]);
   const selectedRecipes = useMemo(

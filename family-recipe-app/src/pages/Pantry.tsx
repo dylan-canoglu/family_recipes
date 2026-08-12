@@ -45,12 +45,12 @@ interface PantryMatch {
 }
 
 export function Pantry() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    syncRecipes();
-  }, []);
+    if (user || isGuest) syncRecipes();
+  }, [user, isGuest]);
 
   const recipes = useLiveQuery(() => getVisibleRecipes(user?.id), [user]);
 

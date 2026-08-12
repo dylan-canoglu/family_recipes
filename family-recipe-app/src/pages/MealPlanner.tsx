@@ -68,7 +68,9 @@ export function MealPlanner() {
   }, [user]);
 
   const recipes = useLiveQuery(() => getVisibleRecipes(user?.id), [user]);
-  const entries = useLiveQuery(() => db.meal_plan.toArray(), []);
+  // The page already refuses to render without a user; this keeps the query
+  // itself from reading cached household data too.
+  const entries = useLiveQuery(() => (user ? db.meal_plan.toArray() : []), [user]);
   const stats = useLiveQuery(() => db.recipe_stats.toArray(), []);
   const favorites = useLiveQuery(
     () => (user ? db.favorites.where({ user_id: user.id }).toArray() : []),

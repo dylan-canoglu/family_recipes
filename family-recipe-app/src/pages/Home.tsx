@@ -14,6 +14,43 @@ import { ChefHat, CookingPot, Shuffle, CalendarPlus, ChevronRight, Heart, Rotate
 
 const LANE_SIZE = 8;
 
+// The front door for anyone who is neither signed in nor already touring.
+// Without this a first-time visitor lands on an empty vault, since nothing
+// syncs until someone has actually chosen how they want to browse.
+function Welcome({ onExplore }: { onExplore: () => void }) {
+  return (
+    <div className="min-h-full flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+      <div className="bg-orange-50 p-5 rounded-full mb-6">
+        <ChefHat className="w-12 h-12 text-orange-500" />
+      </div>
+      <h1 className="text-3xl font-bold text-slate-900 mb-3">The Family Recipe Vault</h1>
+      <p className="text-slate-500 max-w-md mb-8">
+        Two hundred handwritten family recipes, scanned and searchable — with a meal planner,
+        a shopping list that merges everything, and a cook mode for the kitchen counter.
+      </p>
+
+      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+        <Link
+          to="/auth"
+          className="flex-1 flex items-center justify-center min-h-[44px] px-6 rounded-xl bg-orange-600 text-white font-semibold shadow-sm hover:bg-orange-700 active:scale-[0.98] transition-all"
+        >
+          Sign In
+        </Link>
+        <button
+          onClick={onExplore}
+          className="flex-1 flex items-center justify-center min-h-[44px] px-6 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 active:scale-[0.98] transition-all"
+        >
+          Explore as guest
+        </button>
+      </div>
+      <p className="text-xs text-slate-400 mt-4 max-w-sm">
+        Guests get the whole vault read-only — nothing is saved, and the family's
+        favorites, notes and meal plan stay private.
+      </p>
+    </div>
+  );
+}
+
 const SLOT_LABELS: Record<MealSlot, string> = {
   breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack',
 };
@@ -83,7 +120,7 @@ function Lane({
 }
 
 export function Home() {
-  const { user } = useAuth();
+  const { user, isGuest, enterGuestMode } = useAuth();
   const navigate = useNavigate();
   const [shuffle, setShuffle] = useState(seedForToday);
   const [skippedIds, setSkippedIds] = useState<string[]>([]);
@@ -95,12 +132,16 @@ export function Home() {
   };
 
   useEffect(() => {
+    // Nothing is fetched until someone has chosen to sign in or tour as a
+    // guest, so a bare visitor gets the welcome screen rather than a vault
+    // that quietly populated itself.
+    if (!user && !isGuest) return;
     syncRecipes();
     if (user) {
       syncRecipeStats();
       syncMealPlan();
     }
-  }, [user]);
+  }, [user, isGuest]);
 
   const recipes = useLiveQuery(() => getVisibleRecipes(user?.id), [user]);
   const stats = useLiveQuery(() => db.recipe_stats.toArray(), []);
@@ -112,7 +153,10 @@ export function Home() {
     () => (user ? db.cooking_logs.where({ user_id: user.id }).toArray() : []),
     [user]
   );
-  const planEntries = useLiveQuery(() => db.meal_plan.toArray(), []);
+  // Gated on `user`, not just on the sync: signing out does not clear Dexie,
+  // so a guest on a family member's phone would otherwise read the household's
+  // week straight out of the local cache.
+  const planEntries = useLiveQuery(() => (user ? db.meal_plan.toArray() : []), [user]);
 
   const today = new Date();
   const todayISO = toISODate(today);
@@ -198,6 +242,10 @@ export function Home() {
       showToast('Added to tonight’s plan.');
     }
   };
+
+  // Must precede the loading branch: with sync gated off for a bare visitor,
+  // `recipes` never arrives and they would sit on "Warming up the kitchen".
+  if (!user && !isGuest) return <Welcome onExplore={enterGuestMode} />;
 
   if (!recipes || !lanes) {
     return (

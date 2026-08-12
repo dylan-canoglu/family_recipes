@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ChefHat, Mail, Lock } from 'lucide-react';
+import { ChefHat, Mail, Lock, Eye } from 'lucide-react';
 import { Toast } from '../components/Toast';
+import { useAuth } from '../lib/AuthContext';
 
 export function Auth() {
+  const { enterGuestMode } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -104,6 +106,26 @@ export function Auth() {
           >
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
+        </div>
+
+        {/* Guests stay signed out on purpose -- see the note in AuthContext.
+            Saying "nothing you do is saved" up front is more honest than
+            letting someone favorite a recipe and lose it. */}
+        <div className="mt-6 pt-6 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => {
+              enterGuestMode();
+              navigate('/');
+            }}
+            className="w-full flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-lg border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 active:scale-[0.99] transition-all"
+          >
+            <Eye className="w-5 h-5 text-slate-400" />
+            Explore as guest
+          </button>
+          <p className="text-xs text-slate-400 mt-3 text-center">
+            Browse every recipe read-only. No account, and nothing you tap is saved.
+          </p>
         </div>
       </div>
       <Toast message={toast} />

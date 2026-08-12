@@ -76,7 +76,7 @@ interface DialogState {
 }
 
 export function RecipeList() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isGuest } = useAuth();
   const navigate = useNavigate();
   // Home's lane headers deep-link here pre-filtered, e.g. /recipes?dish=Soup.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -157,8 +157,8 @@ export function RecipeList() {
   }, [photos]);
 
   useEffect(() => {
-    syncRecipes();
-  }, []);
+    if (user || isGuest) syncRecipes();
+  }, [user, isGuest]);
 
   // --- Review sweep actions (admin only) ---
 
