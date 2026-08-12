@@ -16,6 +16,19 @@ export interface Recipe {
   // already the display language.
   instructions_en?: string | null;
   ingredients_en?: string[] | null;
+  // --- College/meal-prep metadata (schema v6). All optional: the ~200
+  // imported rows predate them, and absent means "not yet classified" rather
+  // than false, so filters must treat undefined as unknown, not as a no.
+  // Prep/cook times intentionally stay on the existing prep_time_min /
+  // cook_time_min columns -- do not add parallel *_minutes fields.
+  /** A dish that genuinely carries a meal, as opposed to fillers mislabeled Main Dish. */
+  is_main_dish?: boolean;
+  /** Quick, budget-friendly, high-yield -- the weeknight college rotation. */
+  college_staple?: boolean;
+  /** Holds up well in the fridge and reheats without falling apart. */
+  meal_prep_friendly?: boolean;
+  /** Free-form labels, e.g. "Köfte", "Rice", "One-Pan", "Quick Prep". */
+  tags?: string[];
 }
 
 export interface CookingLog { id: string; recipe_id: string; user_id: string; cooked_at: Date | string; rating: number; notes: string; }
@@ -101,6 +114,13 @@ export class RecipeVaultDB extends Dexie {
     // on each sync rather than merged.
     this.version(5).stores({
       recipe_stats: 'recipe_id, cook_count, avg_rating'
+    });
+
+    // v6: college/meal-prep metadata. Only `tags` gets an index (multiEntry);
+    // IndexedDB can't index booleans, so is_main_dish / college_staple /
+    // meal_prep_friendly are plain fields filtered in memory.
+    this.version(6).stores({
+      recipes: 'id, household_id, title, cuisine, dish_type, complexity, visibility, owner_id, *tags'
     });
   }
 }
