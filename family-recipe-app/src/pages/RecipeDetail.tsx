@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye, CookingPot, X } from 'lucide-react';
+import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye, CookingPot, X, Flame, Users } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -14,7 +14,16 @@ import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
 import { FlipCard } from '../components/FlipCard';
 import { StarRating } from '../components/StarRating';
 import { LogCookDialog, type CookLogFields } from '../components/LogCookDialog';
+import { CookMode } from '../components/CookMode';
 import { syncRecipePhotos } from '../lib/sync';
+
+// Portion presets: 1x as written, 2x for two people with leftovers, 4x for a
+// full college meal-prep batch.
+const PORTION_PRESETS = [
+  { multiplier: 1, label: '1×', hint: 'Single' },
+  { multiplier: 2, label: '2×', hint: 'Double' },
+  { multiplier: 4, label: '4×', hint: 'College Batch' },
+] as const;
 
 interface DialogState {
   title: string;
@@ -53,6 +62,9 @@ export function RecipeDetail() {
   const [logDialogOpen, setLogDialogOpen] = useState(false);
   const [logFields, setLogFields] = useState<CookLogFields>(emptyCookLogFields);
   const [savingLog, setSavingLog] = useState(false);
+
+  const [multiplier, setMultiplier] = useState(1);
+  const [cookModeOpen, setCookModeOpen] = useState(false);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -103,6 +115,8 @@ export function RecipeDetail() {
   useEffect(() => {
     setShowOriginal(false);
     setShowScan(false);
+    setMultiplier(1);
+    setCookModeOpen(false);
   }, [id]);
 
   // 2. ACTION HANDLERS: The logic executed when a user clicks a button.
@@ -369,8 +383,8 @@ export function RecipeDetail() {
   };
 
   // 3. UI RENDERING: Loading states and safety checks
-  if (recipe === undefined) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (recipe === null || recipe.deleted_at) return <div className="min-h-screen flex items-center justify-center">Recipe not found or deleted.</div>;
+  if (recipe === undefined) return <div className="min-h-full flex items-center justify-center">Loading...</div>;
+  if (recipe === null || recipe.deleted_at) return <div className="min-h-full flex items-center justify-center">Recipe not found or deleted.</div>;
 
   // Evaluate permissions based on Schema V3 rules
   const isGlobal = recipe.visibility === 'global';
@@ -380,7 +394,9 @@ export function RecipeDetail() {
   const isPersonal = recipe.visibility === 'personal' || !recipe.visibility;
   const hasTranslation = !!(recipe.instructions_en || (recipe.ingredients_en && recipe.ingredients_en.length > 0));
   const useOriginal = showOriginal || !hasTranslation;
-  const ingredientLines = formatIngredientList(useOriginal ? recipe.ingredients : recipe.ingredients_en);
+  // All ingredient rendering flows through formatIngredientList, which also
+  // applies the portion multiplier to every parseable quantity.
+  const ingredientLines = formatIngredientList(useOriginal ? recipe.ingredients : recipe.ingredients_en, multiplier);
   const instructionSteps = formatInstructionSteps(useOriginal ? recipe.instructions : recipe.instructions_en);
 
   const ratedLogs = cookLogs.filter((log) => log.rating > 0);
@@ -389,7 +405,7 @@ export function RecipeDetail() {
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12">
+    <div className="min-h-full bg-slate-50 pb-12">
       {/* 4. DYNAMIC UI: Hidden Banner Notice */}
       {hiddenRecord && (
         <div className="bg-amber-500 text-white px-4 py-3 text-center flex items-center justify-center gap-4 shadow-md sticky top-0 z-50">
@@ -476,11 +492,31 @@ export function RecipeDetail() {
           <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6">{recipe.title}</h1>
 
           <div className="flex flex-wrap items-center justify-between gap-6 mb-10 pb-10 border-b border-slate-100">
-            <div className="flex items-center gap-2 text-slate-600">
-              <Clock className="w-5 h-5 text-orange-600" />
-              <span>Total: {recipe.total_time_min}m</span>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-slate-600">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-orange-600" />
+                <span>
+                  {recipe.prep_time_min ? `Prep ${recipe.prep_time_min}m · ` : ''}
+                  {recipe.cook_time_min ? `Cook ${recipe.cook_time_min}m · ` : ''}
+                  Total {recipe.total_time_min}m
+                </span>
+              </div>
+              {!!recipe.base_servings && (
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-orange-600" />
+                  <span>Serves {recipe.base_servings * multiplier}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {instructionSteps.length > 0 && (
+                <button
+                  onClick={() => setCookModeOpen(true)}
+                  className="flex items-center gap-2 text-sm font-bold text-white bg-slate-900 px-4 py-2 min-h-[44px] rounded-lg hover:bg-slate-800 active:scale-95 transition-all"
+                >
+                  <Flame className="w-4 h-4 text-orange-400" /> Cook Mode
+                </button>
+              )}
               {hasTranslation && (
                 <button
                   onClick={() => setShowOriginal(!showOriginal)}
@@ -507,7 +543,29 @@ export function RecipeDetail() {
             front={
               <div className="grid md:grid-cols-3 gap-12">
                 <div className="md:col-span-1">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-6">Ingredients</h2>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-4">Ingredients</h2>
+
+                  {/* Portion & batch scaler: every quantity below rescales live. */}
+                  <div className="flex gap-2 mb-6">
+                    {PORTION_PRESETS.map(({ multiplier: m, label, hint }) => (
+                      <button
+                        key={m}
+                        onClick={() => setMultiplier(m)}
+                        title={hint}
+                        className={`flex-1 min-h-[44px] px-2 rounded-xl border text-center transition-all active:scale-95 ${
+                          multiplier === m
+                            ? 'bg-orange-600 border-orange-600 text-white shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-orange-300'
+                        }`}
+                      >
+                        <span className="block text-sm font-bold leading-tight">{label}</span>
+                        <span className={`block text-[10px] font-medium leading-tight ${multiplier === m ? 'text-orange-100' : 'text-slate-400'}`}>
+                          {hint}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
                   <ul className="space-y-3 text-slate-700">
                     {ingredientLines.length > 0 ? (
                       ingredientLines.map((ing, i) => (
@@ -647,6 +705,14 @@ export function RecipeDetail() {
         onSubmitForApproval={handleSubmitEditForApproval}
         onCancel={() => setEditDialogOpen(false)}
       />
+      {cookModeOpen && (
+        <CookMode
+          title={recipe.title || 'Untitled Recipe'}
+          ingredients={ingredientLines}
+          steps={instructionSteps}
+          onClose={() => setCookModeOpen(false)}
+        />
+      )}
       <Toast message={toast} />
     </div>
   );
