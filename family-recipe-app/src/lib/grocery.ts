@@ -1,5 +1,5 @@
 import type { Recipe } from './db';
-import { formatIngredientList, formatAmount, splitLeadingQuantity } from './format';
+import { formatIngredientList, formatAmount, splitLeadingQuantity, promoteUnit, pluralizeWord } from './format';
 
 // Consolidates the ingredients of several recipes into one deduplicated
 // shopping list. Ingredient text always flows through formatIngredientList
@@ -106,9 +106,23 @@ export function buildGroceryList(recipes: Recipe[]): GroceryItem[] {
     .map(([key, b]) => {
       let label: string;
       if (b.total > 0) {
-        const amount = b.unit === 'g' || b.unit === 'ml'
-          ? `${formatAmount(Math.round(b.total))} ${b.unit}`
-          : `${formatAmount(b.total)}${b.unit ? ` ${b.unit}${b.total > 1 && !b.unit.endsWith('s') && !['g', 'ml', 'oz', 'lb', 'tsp', 'tbsp'].includes(b.unit) ? 's' : ''}` : ''}`;
+        let amount: string;
+        if (b.unit === 'g' || b.unit === 'ml') {
+          // Weights and volumes promote once they get unwieldy: 1800 g is a
+          // number to decode at the scales, 1.8 kg is a thing to buy.
+          const promoted = promoteUnit(Math.round(b.total), b.unit);
+          amount = promoted.unit === b.unit
+            ? `${formatAmount(Math.round(b.total))} ${b.unit}`
+            : `${Math.round(promoted.amount * 100) / 100} ${promoted.unit}`;
+        } else if (b.unit) {
+          // Abbreviations never take a plural; words do -- and "bunch" needs
+          // "bunches", which a bare "s" got wrong.
+          const plural = b.total > 1 && !b.unit.endsWith('s')
+            && !['g', 'ml', 'oz', 'lb', 'tsp', 'tbsp', 'kg', 'l'].includes(b.unit);
+          amount = `${formatAmount(b.total)} ${plural ? pluralizeWord(b.unit) : b.unit}`;
+        } else {
+          amount = formatAmount(b.total);
+        }
         label = `${amount} ${b.display}`;
         if (b.unquantified > 0) label += ' (+ some to taste)';
       } else {

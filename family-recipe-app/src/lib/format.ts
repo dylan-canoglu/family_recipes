@@ -73,6 +73,52 @@ export function scaleEquivalentNote(note: string, multiplier: number): string {
   return value == null ? note : `${formatAmount(value * multiplier)} ${match[2]}`;
 }
 
+// Once a scaled amount gets unwieldy, say it in the unit a shopper would use.
+// 1800 g is a number to decode at the scales; 1.8 kg is a thing to buy.
+const UNIT_PROMOTIONS: { from: RegExp; to: string; per: number }[] = [
+  { from: /^(?:g|gr|gram|grams|gramme|grammes)$/i, to: 'kg', per: 1000 },
+  { from: /^(?:ml|millilitre|millilitres|milliliter|milliliters)$/i, to: 'L', per: 1000 },
+];
+
+export function promoteUnit(amount: number, unit: string): { amount: number; unit: string } {
+  const rule = UNIT_PROMOTIONS.find((r) => r.from.test(unit.trim()));
+  if (!rule || amount < rule.per) return { amount, unit };
+  return { amount: amount / rule.per, unit: rule.to };
+}
+
+// English plurals, and only for a known list of countable ingredients.
+//
+// This is deliberately not a general rule. Turkish does NOT pluralise a noun
+// after a numeral -- "2 soğan" is correct and "2 soğanlar" is wrong -- and
+// this vault is mostly French and Turkish, so a blanket "add an s" would
+// corrupt more lines than it fixed. Anything not listed is left exactly as
+// the recipe wrote it.
+const PLURALISABLE = new Set([
+  'onion', 'egg', 'clove', 'tomato', 'potato', 'carrot', 'apple', 'lemon',
+  'lime', 'shallot', 'mushroom', 'sausage', 'fillet', 'slice', 'sprig',
+  'stalk', 'cup', 'tablespoon', 'teaspoon', 'pinch', 'handful',
+]);
+
+/**
+ * English plural of a single word: bunch -> bunches, tomato -> tomatoes,
+ * onion -> onions. Shared with the shopping list, which was appending a bare
+ * "s" and producing "4 bunchs broccoli".
+ */
+export function pluralizeWord(word: string): string {
+  if (/(?:s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
+  if (/o$/i.test(word)) return `${word}es`;
+  return `${word}s`;
+}
+
+function pluralizeItem(item: string, amount: number): string {
+  if (amount <= 1) return item;
+  const match = item.match(/^(.*?)(\p{L}+)(\W*)$/u);
+  if (!match) return item;
+  const [, head, word, tail] = match;
+  if (!PLURALISABLE.has(word.toLowerCase())) return item;
+  return `${head}${pluralizeWord(word)}${tail}`;
+}
+
 // Scales an in-line "(3/4 dl)"-style restatement wherever it sits. The legacy
 // import often left it inside the `item` field itself, so this has to run on
 // reconstructed lines as well as raw ones.
@@ -131,7 +177,28 @@ export function formatIngredient(ing: unknown, multiplier = 1): string {
     const quantity = qtyMax != null
       ? `${typeof qty === 'number' ? formatAmount(qty) : qty ?? ''}-${typeof qtyMax === 'number' ? formatAmount(qtyMax) : qtyMax}`
       : typeof qty === 'number' ? formatAmount(qty) : qty;
-    const parts = [quantity, o.unit, o.item].filter((p) => p !== null && p !== undefined && p !== '');
+    // Promote the unit and pluralise the noun only when a scale actually
+    // happened and the amount is a plain number -- ranges and free text are
+    // left alone rather than guessed at.
+    let displayQuantity = quantity;
+    let displayUnit = o.unit;
+    let displayItem = o.item;
+    if (qtyMax == null && typeof qty === 'number') {
+      if (typeof o.unit === 'string' && o.unit) {
+        const promoted = promoteUnit(qty, o.unit);
+        if (promoted.unit !== o.unit) {
+          // Decimal, not formatAmount: that renders fractions, and "1⅘ kg"
+          // is not how anyone weighs 1.8 kg of mushrooms.
+          displayQuantity = String(Math.round(promoted.amount * 100) / 100);
+          displayUnit = promoted.unit;
+        }
+      }
+      if (multiplier !== 1 && typeof o.item === 'string') {
+        displayItem = pluralizeItem(o.item, qty);
+      }
+    }
+
+    const parts = [displayQuantity, displayUnit, displayItem].filter((p) => p !== null && p !== undefined && p !== '');
     let text = parts.join(' ').trim();
     // The item text itself can carry a restated amount, e.g. "(3/4 dl) water".
     if (numericQty != null) text = scaleEquivalentParenthetical(text, multiplier);
