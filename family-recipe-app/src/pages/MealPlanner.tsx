@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { db, type Recipe } from '../lib/db';
+import { db, type MealPlan, type Recipe } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { getVisibleRecipes } from '../lib/recipes';
-import { syncMealPlan, syncRecipes } from '../lib/sync';
+import { syncMealPlan, syncRecipeStats, syncRecipes } from '../lib/sync';
+import { buildStatsMap, pickVariedSequence, rankRecipes, type RankContext } from '../lib/suggest';
 import { useAuth } from '../lib/AuthContext';
 import { HOUSEHOLD_ID, MEAL_SLOTS, type MealSlot } from '../lib/constants';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, X, Shuffle, Wand2 } from 'lucide-react';
 import { RecipePickerDialog } from '../components/RecipePickerDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -39,11 +40,16 @@ const addDays = (date: Date, days: number) => {
   return d;
 };
 
+// How many ranked picks the slot picker shows before falling back to search.
+const SUGGESTION_COUNT = 6;
+
 export function MealPlanner() {
   const { user } = useAuth();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [picking, setPicking] = useState<{ date: string; slot: MealSlot } | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; title: string } | null>(null);
+  const [confirmPlanWeek, setConfirmPlanWeek] = useState(false);
+  const [pickerSeed, setPickerSeed] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (message: string) => {
@@ -56,11 +62,17 @@ export function MealPlanner() {
     if (user) {
       syncRecipes();
       syncMealPlan();
+      syncRecipeStats();
     }
   }, [user]);
 
   const recipes = useLiveQuery(() => getVisibleRecipes(user?.id), [user]);
   const entries = useLiveQuery(() => db.meal_plan.toArray(), []);
+  const stats = useLiveQuery(() => db.recipe_stats.toArray(), []);
+  const favorites = useLiveQuery(
+    () => (user ? db.favorites.where({ user_id: user.id }).toArray() : []),
+    [user]
+  );
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const todayISO = toISODate(new Date());
@@ -76,36 +88,109 @@ export function MealPlanner() {
     planned.get(date)![slot] = { id: entry.id, recipe: recipesById.get(entry.recipe_id) };
   }
 
+  // Recipes already spoken for this week, so suggestions don't repeat what is
+  // already on the board.
+  const weekRecipeIds = useMemo(() => {
+    const weekDates = new Set(Array.from({ length: 7 }, (_, i) => toISODate(addDays(weekStart, i))));
+    return new Set(
+      (entries ?? [])
+        .filter((e) => weekDates.has(String(e.plan_date).slice(0, 10)))
+        .map((e) => e.recipe_id)
+    );
+  }, [entries, weekStart]);
+
+  const ctx: RankContext = useMemo(() => ({
+    statsByRecipe: buildStatsMap(stats),
+    favoriteIds: new Set((favorites ?? []).map((f) => f.recipe_id)),
+    plannedIds: weekRecipeIds,
+  }), [stats, favorites, weekRecipeIds]);
+
+  const suggestions = useMemo(() => {
+    if (!picking || !recipes) return [];
+    return rankRecipes(recipes, ctx, {
+      slot: picking.slot,
+      limit: SUGGESTION_COUNT,
+      excludeIds: weekRecipeIds,
+      seed: pickerSeed,
+    });
+  }, [picking, recipes, ctx, weekRecipeIds, pickerSeed]);
+
+  const writeEntries = async (newEntries: MealPlan[], replacing: MealPlan[]) => {
+    for (const stale of replacing) {
+      await db.meal_plan.delete(stale.id);
+      await supabase.from('meal_plan').delete().eq('id', stale.id);
+    }
+    // Local first so planning works without a connection.
+    await db.meal_plan.bulkPut(newEntries);
+    const { error } = await supabase.from('meal_plan').insert(newEntries);
+    if (error) {
+      console.error('Failed to push meal plan entries to cloud:', error);
+      showToast('Saved locally — it will need re-syncing.');
+      return false;
+    }
+    return true;
+  };
+
+  const buildEntry = (date: string, slot: MealSlot, recipeId: string): MealPlan => ({
+    id: uuidv4(),
+    household_id: HOUSEHOLD_ID,
+    plan_date: date,
+    meal_slot: slot,
+    recipe_id: recipeId,
+    created_at: new Date().toISOString(),
+  });
+
+  const assignTo = async (date: string, slot: MealSlot, recipeId: string) => {
+    // One recipe per slot: replace whatever was already there.
+    const existing = (entries ?? []).filter(
+      (e) => String(e.plan_date).slice(0, 10) === date && e.meal_slot === slot
+    );
+    await writeEntries([buildEntry(date, slot, recipeId)], existing);
+  };
+
   const assignRecipe = async (recipe: Recipe) => {
     if (!picking || !user) return;
     const { date, slot } = picking;
     setPicking(null);
+    await assignTo(date, slot, recipe.id);
+  };
 
-    // One recipe per slot: replace whatever was already there.
-    const existing = (entries ?? []).find(
-      (e) => String(e.plan_date).slice(0, 10) === date && e.meal_slot === slot
-    );
-    if (existing) {
-      await db.meal_plan.delete(existing.id);
-      await supabase.from('meal_plan').delete().eq('id', existing.id);
-    }
+  // One tap, no dialog: takes the top-ranked pick for that slot.
+  const surpriseMe = async (date: string, slot: MealSlot) => {
+    if (!user || !recipes) return;
+    const [top] = rankRecipes(recipes, ctx, {
+      slot,
+      limit: 1,
+      excludeIds: weekRecipeIds,
+      seed: Date.now() % 100000,
+    });
+    if (!top) return showToast('No suggestions available.');
+    await assignTo(date, slot, top.recipe.id);
+    showToast(`Added ${top.recipe.title || 'a recipe'}.`);
+  };
 
-    const entry = {
-      id: uuidv4(),
-      household_id: HOUSEHOLD_ID,
-      plan_date: date,
-      meal_slot: slot,
-      recipe_id: recipe.id,
-      created_at: new Date().toISOString(),
-    };
+  const planWeek = async () => {
+    setConfirmPlanWeek(false);
+    if (!user || !recipes) return;
 
-    // Local first so planning works without a connection.
-    await db.meal_plan.put(entry);
-    const { error } = await supabase.from('meal_plan').insert(entry);
-    if (error) {
-      console.error('Failed to push meal plan entry to cloud:', error);
-      showToast('Saved locally — it will need re-syncing.');
-    }
+    const emptyDinners = Array.from({ length: 7 }, (_, i) => toISODate(addDays(weekStart, i)))
+      .filter((date) => !(entries ?? []).some(
+        (e) => String(e.plan_date).slice(0, 10) === date && e.meal_slot === 'dinner'
+      ));
+
+    if (emptyDinners.length === 0) return showToast('Every dinner this week is already planned.');
+
+    const picks = pickVariedSequence(recipes, ctx, emptyDinners.length, {
+      slot: 'dinner',
+      excludeIds: weekRecipeIds,
+      seed: Date.now() % 100000,
+    });
+
+    const newEntries = picks.map((pick, i) => buildEntry(emptyDinners[i], 'dinner', pick.recipe.id));
+    if (newEntries.length === 0) return showToast('No suggestions available.');
+
+    const ok = await writeEntries(newEntries, []);
+    if (ok) showToast(`Planned ${newEntries.length} dinner${newEntries.length > 1 ? 's' : ''}.`);
   };
 
   const removeEntry = async (id: string) => {
@@ -157,12 +242,20 @@ export function MealPlanner() {
             </button>
             <span className="font-semibold text-slate-800 ml-2">{weekLabel}</span>
           </div>
-          <button
-            onClick={() => setWeekStart(startOfWeek(new Date()))}
-            className="text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg text-slate-600 font-semibold hover:bg-slate-100 transition-colors"
-          >
-            This week
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setWeekStart(startOfWeek(new Date()))}
+              className="text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg text-slate-600 font-semibold hover:bg-slate-100 transition-colors"
+            >
+              This week
+            </button>
+            <button
+              onClick={() => setConfirmPlanWeek(true)}
+              className="flex items-center gap-2 text-sm bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+            >
+              <Wand2 className="w-4 h-4" /> Plan my week
+            </button>
+          </div>
         </div>
 
         {/* Slot headers -- desktop only; each mobile day card labels its own slots */}
@@ -212,9 +305,15 @@ export function MealPlanner() {
                           {cell.recipe ? (
                             <Link
                               to={`/recipes/${cell.recipe.id}`}
-                              className="block text-sm font-semibold text-slate-800 hover:text-orange-600 transition-colors line-clamp-2 pr-5"
+                              className="block pr-5 group/link"
                             >
-                              {cell.recipe.title || 'Untitled Recipe'}
+                              <span className="block text-sm font-semibold text-slate-800 group-hover/link:text-orange-600 transition-colors line-clamp-2">
+                                {cell.recipe.title || 'Untitled Recipe'}
+                              </span>
+                              {/* Enough at a glance to judge the week without opening anything. */}
+                              <span className="block text-xs text-slate-500 mt-1 line-clamp-1">
+                                {cell.recipe.dish_type || 'Recipe'} · {cell.recipe.complexity || 'Family recipe'}
+                              </span>
                             </Link>
                           ) : (
                             // Planned by someone else against a recipe this
@@ -232,12 +331,22 @@ export function MealPlanner() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => setPicking({ date: iso, slot })}
-                          className="w-full h-full min-h-[3.5rem] flex items-center justify-center gap-1 border border-dashed border-slate-300 rounded-lg text-slate-400 text-sm hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50/50 transition-colors"
-                        >
-                          <Plus className="w-4 h-4" /> Add
-                        </button>
+                        <div className="flex h-full min-h-[3.5rem] border border-dashed border-slate-300 rounded-lg overflow-hidden divide-x divide-dashed divide-slate-300">
+                          <button
+                            onClick={() => { setPickerSeed((s) => s + 1); setPicking({ date: iso, slot }); }}
+                            className="flex-1 flex items-center justify-center gap-1 text-slate-400 text-sm hover:text-orange-600 hover:bg-orange-50/50 transition-colors"
+                          >
+                            <Plus className="w-4 h-4" /> Add
+                          </button>
+                          {/* Fills instantly with the top pick -- the no-decision path. */}
+                          <button
+                            onClick={() => surpriseMe(iso, slot)}
+                            title="Surprise me"
+                            className="px-3 flex items-center justify-center text-slate-300 hover:text-orange-600 hover:bg-orange-50/50 transition-colors"
+                          >
+                            <Shuffle className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -257,9 +366,20 @@ export function MealPlanner() {
               ).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`
             : ''
         }
-        recipes={recipes ?? []}
+        suggestions={suggestions}
+        allRecipes={recipes ?? []}
         onPick={assignRecipe}
+        onReshuffle={() => setPickerSeed((s) => s + 1)}
         onCancel={() => setPicking(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmPlanWeek}
+        title="Plan My Week"
+        message="Fill every empty dinner this week with a varied set of suggestions? Meals you've already planned stay untouched."
+        confirmLabel="Plan it"
+        onConfirm={planWeek}
+        onCancel={() => setConfirmPlanWeek(false)}
       />
 
       <ConfirmDialog

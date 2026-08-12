@@ -17,13 +17,31 @@ export type SuggestionSlot = MealSlot | 'any';
 // Easy and pick up that bonus -- unrepresentative of a vault with 39 mains to
 // 20 soups. A 0.6 edge to Main Dish is smaller than JITTER_WEIGHT, so soups
 // still appear regularly; they just stop dominating.
+//
+// `Sauce` and `Side` appear nowhere. Sauce is a component rather than a meal.
+// `Side` is the import's `Other` bucket and is measurably junk: all 15
+// artefact titles in the vault ("Right Page", "Yellow Sticky Note",
+// "Sub-recipe 2") sit in it, and 33 of its 50 entries have no real
+// instructions. Both stay fully browsable and searchable; they are just never
+// put in front of someone who asked what to cook.
 const SLOT_DISH_WEIGHTS: Record<SuggestionSlot, Record<string, number>> = {
-  dinner: { 'Main Dish': 3, Soup: 2.4, Side: 1.5 },
-  lunch: { 'Main Dish': 3, Soup: 2.6, Appetizer: 1.8, Side: 1.5 },
+  dinner: { 'Main Dish': 3, Soup: 2.4 },
+  lunch: { 'Main Dish': 3, Soup: 2.6, Appetizer: 1.8 },
   breakfast: { Pastry: 3, Dessert: 1.5 },
   snack: { Dessert: 3, Pastry: 2.6, Appetizer: 1.5 },
-  any: { 'Main Dish': 3, Soup: 2.4, Dessert: 1.6, Side: 1.4 },
+  any: { 'Main Dish': 3, Soup: 2.4, Dessert: 1.6 },
 };
+
+// A suggestion you can't actually follow is worse than no suggestion, and a
+// third of the vault imported without usable instructions. Browsing and search
+// still reach everything; only suggestions are held to this bar.
+const MIN_INSTRUCTION_LENGTH = 40;
+
+export function isCookable(recipe: Recipe): boolean {
+  const hasSteps = String(recipe.instructions ?? '').trim().length >= MIN_INSTRUCTION_LENGTH;
+  const hasIngredients = Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0;
+  return hasSteps && hasIngredients;
+}
 
 const RECENTLY_COOKED_DAYS = 14;
 const STALE_AFTER_DAYS = 180;
@@ -145,6 +163,7 @@ export function rankRecipes(recipes: Recipe[], ctx: RankContext, options: RankOp
 
   const candidates = recipes.filter((recipe) => {
     if (excluded.has(recipe.id)) return false;
+    if (!isCookable(recipe)) return false;
     return allowedTypes.includes(recipe.dish_type || '');
   });
 
