@@ -7,10 +7,11 @@
  * billable. Neither can live in the app bundle, which is precisely why
  * translation happens here, once, instead of at render time.
  *
- *   1. Run supabase-recipe-translations.sql in the Supabase SQL editor.
- *   2. Put SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and ANTHROPIC_API_KEY in
- *      the repo-root .env (already gitignored).
- *   3. node scripts/translate-recipes.mjs --lang fr
+ *   1. Run family-recipe-app/supabase-recipe-translations.sql in the SQL editor.
+ *   2. Add ANTHROPIC_API_KEY to the repo-root .env, next to the SUPABASE_URL
+ *      and SUPABASE_SERVICE_ROLE_KEY already there. That file is gitignored.
+ *   3. npm install          (from the repo root, once)
+ *   4. npm run translate -- --lang fr --limit 5
  *
  * Flags:
  *   --lang <en|fr|tr>   target language (required)
@@ -22,9 +23,16 @@
  * --force is passed, so an interrupted run resumes where it stopped.
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// Resolved from this file, not from the working directory: the .env lives at
+// the repo root and the script should work no matter where it is invoked.
+const here = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(here, '..', '.env') });
 
 const LANG_NAMES = { en: 'English', fr: 'French', tr: 'Turkish' };
 

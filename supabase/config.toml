@@ -1,0 +1,14 @@
+# Minimal Supabase CLI project file.
+#
+# Written by hand rather than by `supabase init`, which prompts and would have
+# rewritten the functions directory. Only what `functions deploy` actually
+# needs is here; everything else keeps the CLI's defaults.
+#
+# project_id matches the ref in the project URL
+# (https://<ref>.supabase.co), so `link` and `deploy` agree on the target.
+project_id = "wkvcpzzwnegvcgzilmqg"
+
+[functions.translate-recipe]
+# The app invokes this with the signed-in user's JWT, so keep the default
+# verification on -- it stops anonymous callers spending the API key.
+verify_jwt = true
