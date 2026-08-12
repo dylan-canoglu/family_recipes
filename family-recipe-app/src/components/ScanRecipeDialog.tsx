@@ -209,9 +209,10 @@ export function ScanRecipeDialog({ file, saving, onSave, onCancel }: ScanRecipeD
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>
-                  Almost nothing readable came off this page. Cursive handwriting
-                  usually defeats it entirely — try a straight-on, well-lit photo, or
-                  just type the recipe in below. The picture is still attached either way.
+                  Almost nothing readable came off this page. <strong className="font-semibold">Cursive
+                  handwriting cannot be transcribed</strong> — type this one in by hand. If the page is
+                  printed, a straight-on, well-lit photo or a different language above may help.
+                  The picture stays attached either way.
                 </span>
               </p>
             )}

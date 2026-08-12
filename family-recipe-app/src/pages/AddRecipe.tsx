@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { HOUSEHOLD_ID } from '../lib/constants';
 import { pushRecipeToCloud } from '../lib/recipes';
-import { PlusCircle, Clock, ChefHat, Save, LogIn, Camera } from 'lucide-react';
+import { PlusCircle, Clock, ChefHat, Save, LogIn, Camera, PenLine } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ScanRecipeDialog } from '../components/ScanRecipeDialog';
 import { type ScanDraftFields } from '../lib/recipeDraft';
@@ -236,6 +236,18 @@ export function AddRecipe() {
           </button>
           <p className="text-center text-sm text-slate-400 mt-3">
             Snap a notebook page — the text is read automatically and you correct it before saving. Or type it in below.
+          </p>
+          {/* Said before the scan, not after it fails. Automatic reading works
+              on printed and neatly hand-printed pages; it cannot follow
+              joined-up handwriting, and finding that out after uploading is a
+              waste of the cook's time. */}
+          <p className="text-center text-xs text-slate-400 mt-2 flex items-start justify-center gap-1.5 max-w-md mx-auto">
+            <PenLine className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>
+              <strong className="font-semibold text-slate-500">Cursive handwriting can't be transcribed</strong> —
+              please type those recipes in by hand. The photo still gets attached either way, so the
+              original page is always there to read.
+            </span>
           </p>
         </div>
 
