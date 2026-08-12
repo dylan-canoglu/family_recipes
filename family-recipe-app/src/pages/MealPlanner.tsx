@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { db, type MealPlan, type Recipe } from '../lib/db';
 import { supabase } from '../lib/supabase';
@@ -9,7 +9,7 @@ import { syncMealPlan, syncRecipeStats, syncRecipes } from '../lib/sync';
 import { buildStatsMap, pickVariedSequence, rankRecipes, type RankContext } from '../lib/suggest';
 import { useAuth } from '../lib/AuthContext';
 import { HOUSEHOLD_ID, MEAL_SLOTS, type MealSlot } from '../lib/constants';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, X, Shuffle, Wand2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, X, Shuffle, Wand2, ShoppingCart } from 'lucide-react';
 import { RecipePickerDialog } from '../components/RecipePickerDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -45,6 +45,7 @@ const SUGGESTION_COUNT = 6;
 
 export function MealPlanner() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [picking, setPicking] = useState<{ date: string; slot: MealSlot } | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; title: string } | null>(null);
@@ -214,7 +215,7 @@ export function MealPlanner() {
   ).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 md:p-12">
+    <div className="min-h-full bg-slate-50 p-6 md:p-12">
       <div className="max-w-7xl mx-auto">
 
         <div className="flex items-center gap-4 mb-2">
@@ -242,16 +243,25 @@ export function MealPlanner() {
             </button>
             <span className="font-semibold text-slate-800 ml-2">{weekLabel}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setWeekStart(startOfWeek(new Date()))}
-              className="text-sm bg-white border border-slate-200 px-4 py-2 rounded-lg text-slate-600 font-semibold hover:bg-slate-100 transition-colors"
+              className="text-sm bg-white border border-slate-200 px-4 py-2 min-h-[44px] rounded-lg text-slate-600 font-semibold hover:bg-slate-100 transition-colors"
             >
               This week
             </button>
+            {/* Hands the visible week's recipes to the grocery aggregator. */}
+            {weekRecipeIds.size > 0 && (
+              <button
+                onClick={() => navigate(`/shopping?ids=${Array.from(weekRecipeIds).join(',')}`)}
+                className="flex items-center gap-2 text-sm bg-green-600 text-white px-4 py-2 min-h-[44px] rounded-lg font-semibold hover:bg-green-700 active:scale-95 transition-all"
+              >
+                <ShoppingCart className="w-4 h-4" /> Shopping list
+              </button>
+            )}
             <button
               onClick={() => setConfirmPlanWeek(true)}
-              className="flex items-center gap-2 text-sm bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+              className="flex items-center gap-2 text-sm bg-orange-600 text-white px-4 py-2 min-h-[44px] rounded-lg font-semibold hover:bg-orange-700 transition-colors"
             >
               <Wand2 className="w-4 h-4" /> Plan my week
             </button>

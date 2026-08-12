@@ -10,6 +10,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
 import { Discovery } from './pages/Discovery';
 import { MealPlanner } from './pages/MealPlanner';
+import { ShoppingList } from './pages/ShoppingList';
+import { Pantry } from './pages/Pantry';
 import { Home } from './pages/Home';
 import { ConfigError } from './pages/ConfigError';
 import { isSupabaseConfigured, missingSupabaseVars } from './lib/supabase';
@@ -34,6 +36,8 @@ function App() {
           
           <Route path="/discovery" element={<Layout><Discovery /></Layout>} />
           <Route path="/planner" element={<Layout><MealPlanner /></Layout>} />
+          <Route path="/shopping" element={<Layout><ShoppingList /></Layout>} />
+          <Route path="/pantry" element={<Layout><Pantry /></Layout>} />
           <Route path="/favorites" element={<Layout><Favorites /></Layout>} />
           <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
           <Route path="/add" element={<Layout><AddRecipe /></Layout>} />
