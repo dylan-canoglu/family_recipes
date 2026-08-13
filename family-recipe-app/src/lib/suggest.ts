@@ -228,3 +228,33 @@ export function pickVariedSequence(
 
   return chosen;
 }
+
+// --- Transcription gaps ----------------------------------------------------
+// 110 of the imported recipes were never fully typed up from their scan: the
+// page is there, the text is not. These predicates drive the "Needs
+// transcription" filter so the gaps can be worked through in order instead of
+// stumbled into mid-week.
+//
+// Thresholds deliberately match scripts/retranscribe-recipes.mjs, so the
+// filter shows exactly the set that script would queue.
+
+const PLACEHOLDER_TITLE = /^(sub-recipe|right page|left page|page \d|untitled|loose|sticky)/i;
+
+export interface TranscriptionGaps {
+  title: boolean;
+  ingredients: boolean;
+  instructions: boolean;
+}
+
+export function transcriptionGaps(recipe: Recipe): TranscriptionGaps {
+  return {
+    title: PLACEHOLDER_TITLE.test(String(recipe.title ?? '').trim()),
+    ingredients: !Array.isArray(recipe.ingredients) || recipe.ingredients.length === 0,
+    instructions: String(recipe.instructions ?? '').trim().length < MIN_INSTRUCTION_LENGTH,
+  };
+}
+
+export function needsTranscription(recipe: Recipe): boolean {
+  const gaps = transcriptionGaps(recipe);
+  return gaps.title || gaps.ingredients || gaps.instructions;
+}

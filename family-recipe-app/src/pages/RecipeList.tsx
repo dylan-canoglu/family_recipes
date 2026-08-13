@@ -4,7 +4,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { db, type Recipe } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { getVisibleRecipes, updateRecipeInCloud } from '../lib/recipes';
-import { isCookable } from '../lib/suggest';
+import { isCookable, needsTranscription, transcriptionGaps } from '../lib/suggest';
+import { dishTheme, complexityBadge } from '../lib/dishTheme';
 import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
 import { useI18n, type TranslationKey } from '../lib/i18n';
@@ -15,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   ChefHat, Clock, Search, ClipboardCheck, ShoppingCart,
   Edit3, EyeOff, Trash2, GraduationCap, X,
+  LayoutGrid, UtensilsCrossed, Heart, PenLine, type LucideIcon,
 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -24,15 +26,22 @@ import { type ScanDraftFields } from '../lib/recipeDraft';
 // The smart pills. Most of the vault predates the v6 metadata, so each filter
 // pairs the explicit flag with a sensible fallback for unclassified rows --
 // an unclassified vault must not make the pills look broken/empty.
-type SmartFilter = 'all' | 'college' | 'mains' | 'classics';
+type SmartFilter = 'all' | 'college' | 'mains' | 'classics' | 'needswork';
 
 const QUICK_TOTAL_MIN = 45;
 
-const SMART_FILTERS: { id: SmartFilter; labelKey: TranslationKey }[] = [
-  { id: 'all', labelKey: 'vault.filterAll' as const },
-  { id: 'college', labelKey: 'vault.filterCollege' as const },
-  { id: 'mains', labelKey: 'vault.filterMains' as const },
-  { id: 'classics', labelKey: 'vault.filterClassics' as const },
+const SMART_FILTERS: {
+  id: SmartFilter;
+  labelKey: TranslationKey;
+  icon: LucideIcon;
+  /** Maintenance filters are noise for anyone who can't act on them. */
+  adminOnly?: boolean;
+}[] = [
+  { id: 'all', labelKey: 'vault.filterAll' as const, icon: LayoutGrid },
+  { id: 'college', labelKey: 'vault.filterCollege' as const, icon: GraduationCap },
+  { id: 'mains', labelKey: 'vault.filterMains' as const, icon: UtensilsCrossed },
+  { id: 'classics', labelKey: 'vault.filterClassics' as const, icon: Heart },
+  { id: 'needswork', labelKey: 'vault.filterNeedsWork' as const, icon: PenLine, adminOnly: true },
 ];
 
 function matchesSmartFilter(recipe: Recipe, filter: SmartFilter): boolean {
@@ -53,6 +62,9 @@ function matchesSmartFilter(recipe: Recipe, filter: SmartFilter): boolean {
       return recipe.is_main_dish === true || (recipe.dish_type === 'Main Dish' && isCookable(recipe));
     case 'classics':
       return recipe.source_type === 'family';
+    case 'needswork':
+      // The transcription backlog: a page exists, the text never got typed up.
+      return needsTranscription(recipe);
   }
 }
 
@@ -293,16 +305,17 @@ export function RecipeList() {
       {/* Sticky smart filter bar: pinned to the top of the scroll region. */}
       <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 md:px-12 py-2 flex gap-2 overflow-x-auto">
-          {SMART_FILTERS.map(({ id, labelKey }) => (
+          {SMART_FILTERS.filter((f) => !f.adminOnly || isAdmin).map(({ id, labelKey, icon: PillIcon }) => (
             <button
               key={id}
               onClick={() => changeSmartFilter(id)}
-              className={`shrink-0 px-4 min-h-[44px] rounded-full text-sm font-semibold transition-all active:scale-95 ${
+              className={`shrink-0 inline-flex items-center gap-2 px-4 min-h-[44px] rounded-full text-sm font-semibold transition-all active:scale-95 ${
                 smartFilter === id
-                  ? 'bg-orange-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:border-orange-300'
+                  ? 'bg-orange-600 text-white shadow-sm ring-2 ring-orange-200'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-orange-300 hover:text-orange-700'
               }`}
             >
+              <PillIcon className="w-4 h-4" />
               {t(labelKey)}
             </button>
           ))}
@@ -399,6 +412,14 @@ export function RecipeList() {
             {recipes.map((recipe) => {
               const thumb = thumbByRecipe.get(recipe.id);
               const selected = shopSelection.has(recipe.id);
+              const theme = dishTheme(recipe.dish_type);
+              const DishIcon = theme.icon;
+              const gaps = transcriptionGaps(recipe);
+              const missing = [
+                gaps.title && t('vault.gapTitle'),
+                gaps.ingredients && t('vault.gapIngredients'),
+                gaps.instructions && t('vault.gapInstructions'),
+              ].filter(Boolean) as string[];
               const card = (
                 <>
                   {recipe.visibility === 'personal' && (
@@ -410,25 +431,25 @@ export function RecipeList() {
                     <div className="absolute inset-0 bg-green-600/10 border-2 border-green-500 rounded-xl z-10 pointer-events-none" />
                   )}
 
-                  <div className="h-40 bg-slate-100 w-full flex items-center justify-center border-b border-slate-100 group-hover:bg-orange-50 transition-colors overflow-hidden">
+                  <div className={`h-40 bg-slate-50 w-full flex items-center justify-center border-b border-slate-100 ${theme.wash} transition-colors overflow-hidden`}>
                     {thumb ? (
                       <img src={thumb} alt="" loading="lazy" className="w-full h-full object-cover" />
                     ) : (
-                      <ChefHat className="w-8 h-8 text-slate-300 group-hover:text-orange-200 transition-colors" />
+                      // The dish icon rather than a generic chef hat: with no
+                      // photo, the icon is the only thing telling you what
+                      // kind of recipe this is.
+                      <DishIcon className={`w-9 h-9 ${theme.accent} opacity-60 group-hover:opacity-100 transition-opacity`} />
                     )}
                   </div>
 
                   <div className="p-5">
                     <div className="flex justify-between items-start mb-3">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                        {recipe.dish_type || 'Uncategorized'}
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-md ${theme.badge}`}>
+                        <DishIcon className="w-3.5 h-3.5" />
+                        {recipe.dish_type || t('vault.uncategorized')}
                       </span>
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${
-                        recipe.complexity === 'Easy' ? 'bg-green-100 text-green-700' :
-                        recipe.complexity === 'Medium' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {recipe.complexity || 'Unknown'}
+                      <span className={`text-xs font-medium px-2 py-1 rounded-md ${complexityBadge(recipe.complexity)}`}>
+                        {recipe.complexity || '—'}
                       </span>
                     </div>
 
@@ -457,6 +478,16 @@ export function RecipeList() {
                           </span>
                         ))}
                       </div>
+                    )}
+
+                    {/* Names the specific gaps rather than just flagging the
+                        recipe: the whole point is knowing what to type before
+                        opening it. Shown only where it is actionable. */}
+                    {missing.length > 0 && (isAdmin || smartFilter === 'needswork') && (
+                      <p className="flex items-start gap-1.5 mt-3 pt-3 border-t border-dashed border-amber-200 text-[11px] font-medium text-amber-700">
+                        <PenLine className="w-3.5 h-3.5 mt-px shrink-0" />
+                        <span>{t('vault.missingFields', { fields: missing.join(', ') })}</span>
+                      </p>
                     )}
                   </div>
                 </>

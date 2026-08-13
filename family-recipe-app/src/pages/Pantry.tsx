@@ -6,6 +6,7 @@ import { getVisibleRecipes } from '../lib/recipes';
 import { syncRecipes } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
 import { useT, type TranslationKey } from '../lib/i18n';
+import { dishTheme } from '../lib/dishTheme';
 import { formatIngredientList } from '../lib/format';
 import { isCookable } from '../lib/suggest';
 import { Refrigerator, Sparkles, Clock } from 'lucide-react';
@@ -143,7 +144,10 @@ export function Pantry() {
           </div>
         ) : (
           <ul className="space-y-3">
-            {matches.map(({ recipe, matchedStaples, missingCount }) => (
+            {matches.map(({ recipe, matchedStaples, missingCount }) => {
+              const theme = dishTheme(recipe.dish_type);
+              const DishIcon = theme.icon;
+              return (
               <li key={recipe.id}>
                 <Link
                   to={`/recipes/${recipe.id}`}
@@ -151,7 +155,10 @@ export function Pantry() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h3 className="font-bold text-slate-900 line-clamp-1">{recipe.title || 'Untitled Recipe'}</h3>
+                      <h3 className="font-bold text-slate-900 line-clamp-1 flex items-center gap-2">
+                        <DishIcon className={`w-4 h-4 shrink-0 ${theme.accent}`} />
+                        {recipe.title || 'Untitled Recipe'}
+                      </h3>
                       <p className="text-xs text-slate-500 mt-0.5">
                         {recipe.dish_type || 'Recipe'} · {recipe.complexity || 'Family recipe'}
                         {recipe.total_time_min ? (
@@ -178,7 +185,8 @@ export function Pantry() {
                   </div>
                 </Link>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>

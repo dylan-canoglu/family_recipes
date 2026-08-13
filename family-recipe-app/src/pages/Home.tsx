@@ -9,6 +9,7 @@ import { syncMealPlan, syncRecipeStats, syncRecipes } from '../lib/sync';
 import { buildStatsMap, rankRecipes, type RankContext } from '../lib/suggest';
 import { useAuth } from '../lib/AuthContext';
 import { useT } from '../lib/i18n';
+import { dishTheme } from '../lib/dishTheme';
 import { HOUSEHOLD_ID, MEAL_SLOTS, type MealSlot } from '../lib/constants';
 import { Toast } from '../components/Toast';
 import { ChefHat, CookingPot, Shuffle, CalendarPlus, ChevronRight, Heart, RotateCcw } from 'lucide-react';
@@ -67,12 +68,15 @@ const seedForToday = () => {
 };
 
 function LaneCard({ recipe, subtitle }: { recipe: Recipe; subtitle?: string }) {
+  const theme = dishTheme(recipe.dish_type);
+  const DishIcon = theme.icon;
   return (
     <Link
       to={`/recipes/${recipe.id}`}
       className="snap-start flex-shrink-0 w-56 bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all group"
     >
-      <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 bg-orange-50 px-2 py-1 rounded">
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-md ${theme.badge}`}>
+        <DishIcon className="w-3.5 h-3.5" />
         {recipe.dish_type || 'Recipe'}
       </span>
       <h3 className="font-bold text-slate-900 mt-3 line-clamp-2 group-hover:text-orange-600 transition-colors">

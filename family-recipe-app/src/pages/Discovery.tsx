@@ -6,6 +6,7 @@ import { getVisibleRecipes } from '../lib/recipes';
 import { syncRecipeStats } from '../lib/sync';
 import { useAuth } from '../lib/AuthContext';
 import { useT } from '../lib/i18n';
+import { dishTheme } from '../lib/dishTheme';
 import { StarRating } from '../components/StarRating';
 import { Compass, Flame, Sparkles, Clock, History, Shuffle, CookingPot, ChefHat } from 'lucide-react';
 
@@ -41,13 +42,16 @@ function sample<T>(items: T[], count: number): T[] {
 }
 
 function PickCard({ recipe, badge }: { recipe: Recipe; badge: React.ReactNode }) {
+  const theme = dishTheme(recipe.dish_type);
+  const DishIcon = theme.icon;
   return (
     <Link
       to={`/recipes/${recipe.id}`}
       className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-lg hover:-translate-y-1 transition-all block group"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-orange-600 bg-orange-50 px-2 py-1 rounded">
+        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-md ${theme.badge}`}>
+          <DishIcon className="w-3.5 h-3.5" />
           {recipe.dish_type || 'Uncategorized'}
         </span>
         <span className="text-xs text-slate-400 flex items-center gap-1 flex-shrink-0">
