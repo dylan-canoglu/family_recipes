@@ -7,7 +7,7 @@ import { useAuth } from '../lib/AuthContext';
 import { useI18n } from '../lib/i18n';
 import { resolveRecipeText } from '../lib/translation';
 import { syncRecipeTranslations } from '../lib/sync';
-import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye, CookingPot, X, Flame, Users } from 'lucide-react';
+import { ArrowLeft, Clock, Heart, EyeOff, Eye, Trash2, Globe, Edit3, StickyNote, Save, Languages, ScanEye, CookingPot, X, Flame, Users, Maximize2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Toast } from '../components/Toast';
@@ -18,6 +18,7 @@ import { FlipCard } from '../components/FlipCard';
 import { StarRating } from '../components/StarRating';
 import { LogCookDialog, type CookLogFields } from '../components/LogCookDialog';
 import { CookMode } from '../components/CookMode';
+import { ImageZoomViewer } from '../components/ImageZoomViewer';
 import { syncRecipePhotos } from '../lib/sync';
 
 // Portion presets: 1x as written, 2x for two people with leftovers, 4x for a
@@ -69,6 +70,8 @@ export function RecipeDetail() {
 
   const [multiplier, setMultiplier] = useState(1);
   const [cookModeOpen, setCookModeOpen] = useState(false);
+  // The scan opened full-screen for reading, rather than the 420px flip face.
+  const [zoomedScan, setZoomedScan] = useState<string | null>(null);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -134,6 +137,7 @@ export function RecipeDetail() {
     setShowScan(false);
     setMultiplier(1);
     setCookModeOpen(false);
+    setZoomedScan(null);
   }, [id]);
 
   // 2. ACTION HANDLERS: The logic executed when a user clicks a button.
@@ -612,7 +616,21 @@ export function RecipeDetail() {
             }
             back={
               recipe.image_path ? (
-                <img src={recipe.image_path} alt="Original scanned recipe" className="w-full h-full object-contain" />
+                // A button, not a bare image: at 420px the handwriting is not
+                // readable, so the scan's whole job depends on being able to
+                // open it larger.
+                <button
+                  type="button"
+                  onClick={() => setZoomedScan(recipe.image_path)}
+                  className="group relative w-full h-full cursor-zoom-in"
+                  title={t('recipe.openScan')}
+                >
+                  <img src={recipe.image_path} alt="Original scanned recipe" className="w-full h-full object-contain" />
+                  <span className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-full bg-slate-900/75 text-white text-xs font-semibold backdrop-blur-sm group-hover:bg-slate-900/90 transition-colors">
+                    <Maximize2 className="w-4 h-4" />
+                    {t('recipe.openScan')}
+                  </span>
+                </button>
               ) : null
             }
           />
@@ -725,6 +743,12 @@ export function RecipeDetail() {
         onSubmitForApproval={handleSubmitEditForApproval}
         onCancel={() => setEditDialogOpen(false)}
       />
+      <ImageZoomViewer
+        src={zoomedScan}
+        alt={text.title || 'Original scanned recipe'}
+        onClose={() => setZoomedScan(null)}
+      />
+
       {cookModeOpen && (
         <CookMode
           title={recipe.title || 'Untitled Recipe'}

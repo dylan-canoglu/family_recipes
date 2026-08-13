@@ -94,6 +94,7 @@ export const en = {
   'recipe.totalTime': 'Total',
   'recipe.serves': 'Serves {count}',
   'recipe.cookMode': 'Cook Mode',
+  'recipe.openScan': 'Tap to zoom',
   'recipe.verifyOriginal': 'Verify Original',
   'recipe.backToRecipe': 'Back to recipe',
   'recipe.portionSingle': 'Single',

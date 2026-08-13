@@ -87,6 +87,7 @@ export const tr: Partial<Record<TranslationKey, string>> = {
   'recipe.totalTime': 'Toplam',
   'recipe.serves': '{count} kişilik',
   'recipe.cookMode': 'Pişirme modu',
+  'recipe.openScan': 'Büyütmek için dokunun',
   'recipe.verifyOriginal': 'Aslını gör',
   'recipe.backToRecipe': 'Tarife dön',
   'recipe.portionSingle': 'Tek',
