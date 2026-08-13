@@ -17,3 +17,6 @@ recipe pictures/
 # Machine-local Claude Code permission allowlist -- absolute paths from one
 # developer's machine, useless (and noisy) to anyone else.
 .claude/settings.local.json
+
+# Supabase CLI scratch state (login tokens, project refs) -- machine-local.
+supabase/.temp/
